@@ -1,1 +1,2 @@
-pub mod vector;
+pub mod directions;
+pub mod vectors;
