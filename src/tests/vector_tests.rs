@@ -1,4 +1,4 @@
-use crate::utils::vector::{Vector, VectorUtility};
+use crate::utils::vectors::{Vector, VectorUtility};
 
 #[test]
 fn add_1() {
