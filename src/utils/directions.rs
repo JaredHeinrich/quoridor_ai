@@ -1,7 +1,7 @@
 use crate::utils::vectors::Vector;
 
 //Eine Richtung in welche sich z.B. der Spieler bewegen kann.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Direction {
     Up,
     Right,

@@ -1,8 +1,8 @@
 //Darstellung eines Vektors.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Vector {
-    x: i16,
-    y: i16,
+    pub x: i16,
+    pub y: i16,
 }
 
 pub trait VectorUtility {
@@ -16,16 +16,6 @@ impl Vector {
     pub fn new(x: i16, y: i16) -> Self {
         Vector { x, y }
     }
-
-    //Getter
-    pub fn x(&self) -> i16 {
-        self.x
-    }
-
-    pub fn y(&self) -> i16 {
-        self.y
-    }
-    //Getter
 }
 
 //implementation der Vector Utility
@@ -49,6 +39,16 @@ impl VectorUtility for Vector {
         Vector {
             x: -self.x,
             y: -self.y,
+        }
+    }
+}
+
+#[cfg(test)]
+impl Default for Vector {
+    fn default() -> Self {
+        Self {
+            x: i16::default(),
+            y: i16::default(),
         }
     }
 }

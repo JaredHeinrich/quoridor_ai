@@ -8,8 +8,8 @@ pub enum Orientation {
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Wall {
-    position: Vector,
-    orientation: Orientation,
+    pub position: Vector,
+    pub orientation: Orientation,
 }
 
 impl Wall {
@@ -20,15 +20,6 @@ impl Wall {
             orientation,
         }
     }
-
-    //getter
-    pub fn position(&self) -> Vector {
-        self.position
-    }
-    pub fn orientation(&self) -> Orientation {
-        self.orientation
-    }
-    //getter
 
     //returns the directional vector of the wall
     fn directional_vector(&self) -> Vector {

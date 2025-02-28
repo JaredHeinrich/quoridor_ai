@@ -1,28 +1,22 @@
 use crate::utils::side::Side;
 use crate::utils::vectors::{Vector, VectorUtility};
 
+#[derive(Clone)]
 pub struct Pawn {
-    position: Vector,
-    number_of_available_walls: i16,
-    goal_line: i16,
-    player_name: &'static str,
+    pub position: Vector,
+    pub number_of_available_walls: i16,
+    pub goal_line: i16,
 }
 
 impl Pawn {
     //constructor
-    pub fn new(
-        board_size: i16,
-        pawn_side: Side,
-        number_of_available_walls: i16,
-        player_name: &'static str,
-    ) -> Self {
+    pub fn new(board_size: i16, pawn_side: Side, number_of_available_walls: i16) -> Self {
         let position: Vector = Self::calculate_start_coordinate(board_size, &pawn_side);
         let goal_line: i16 = Self::calculate_goal_line(board_size, &pawn_side);
         Self {
             position,
             number_of_available_walls,
             goal_line,
-            player_name,
         }
     }
 
@@ -43,21 +37,9 @@ impl Pawn {
         }
     }
 
-    //getter
-    pub fn position(&self) -> Vector {
-        self.position
+    pub fn set_pawn_position(&mut self, new_position: Vector) {
+        self.position = new_position;
     }
-    pub fn number_of_available_walls(&self) -> i16 {
-        self.number_of_available_walls
-    }
-    pub fn goal_line(&self) -> i16 {
-        self.goal_line
-    }
-    pub fn player_name(&self) -> &str {
-        &self.player_name
-    }
-    //getter
-
     pub fn move_pawn(&mut self, movement: Vector) {
         self.position = self.position.add(movement);
     }
@@ -66,6 +48,17 @@ impl Pawn {
     }
     pub fn dec_number_of_walls(&mut self) {
         self.number_of_available_walls = self.number_of_available_walls - 1;
+    }
+}
+
+#[cfg(test)]
+impl Default for Pawn {
+    fn default() -> Self {
+        Self {
+            position: Vector::default(),
+            number_of_available_walls: i16::default(),
+            goal_line: i16::default(),
+        }
     }
 }
 
@@ -103,12 +96,10 @@ pub mod tests {
         let board_size = 9;
         let pawn_side = Bottom;
         let number_of_walls = 10;
-        let player_name = "Player 1";
-        let act_pawn = Pawn::new(board_size, pawn_side, number_of_walls, player_name);
-        assert_eq!(act_pawn.position(), Vector::new(4, 8));
-        assert_eq!(act_pawn.goal_line(), 0);
-        assert_eq!(act_pawn.number_of_available_walls(), 10);
-        assert_eq!(act_pawn.player_name(), "Player 1");
+        let act_pawn = Pawn::new(board_size, pawn_side, number_of_walls);
+        assert_eq!(act_pawn.position, Vector::new(4, 8));
+        assert_eq!(act_pawn.goal_line, 0);
+        assert_eq!(act_pawn.number_of_available_walls, 10);
     }
 
     #[test]
@@ -116,12 +107,10 @@ pub mod tests {
         let board_size = 9;
         let pawn_side = Top;
         let number_of_walls = 10;
-        let player_name = "Player 1";
-        let act_pawn = Pawn::new(board_size, pawn_side, number_of_walls, player_name);
-        assert_eq!(act_pawn.position(), Vector::new(4, 0));
-        assert_eq!(act_pawn.goal_line(), 8);
-        assert_eq!(act_pawn.number_of_available_walls(), 10);
-        assert_eq!(act_pawn.player_name(), "Player 1");
+        let act_pawn = Pawn::new(board_size, pawn_side, number_of_walls);
+        assert_eq!(act_pawn.position, Vector::new(4, 0));
+        assert_eq!(act_pawn.goal_line, 8);
+        assert_eq!(act_pawn.number_of_available_walls, 10);
     }
 
     #[test]
@@ -129,12 +118,10 @@ pub mod tests {
         let board_size = 5;
         let pawn_side = Bottom;
         let number_of_walls = 7;
-        let player_name = "Player 1";
-        let act_pawn = Pawn::new(board_size, pawn_side, number_of_walls, player_name);
-        assert_eq!(act_pawn.position(), Vector::new(2, 4));
-        assert_eq!(act_pawn.goal_line(), 0);
-        assert_eq!(act_pawn.number_of_available_walls(), 7);
-        assert_eq!(act_pawn.player_name(), "Player 1");
+        let act_pawn = Pawn::new(board_size, pawn_side, number_of_walls);
+        assert_eq!(act_pawn.position, Vector::new(2, 4));
+        assert_eq!(act_pawn.goal_line, 0);
+        assert_eq!(act_pawn.number_of_available_walls, 7);
     }
 
     #[test]
@@ -142,12 +129,10 @@ pub mod tests {
         let board_size = 5;
         let pawn_side = Top;
         let number_of_walls = 7;
-        let player_name = "Player 1";
-        let act_pawn = Pawn::new(board_size, pawn_side, number_of_walls, player_name);
-        assert_eq!(act_pawn.position(), Vector::new(2, 0));
-        assert_eq!(act_pawn.goal_line(), 4);
-        assert_eq!(act_pawn.number_of_available_walls(), 7);
-        assert_eq!(act_pawn.player_name(), "Player 1");
+        let act_pawn = Pawn::new(board_size, pawn_side, number_of_walls);
+        assert_eq!(act_pawn.position, Vector::new(2, 0));
+        assert_eq!(act_pawn.goal_line, 4);
+        assert_eq!(act_pawn.number_of_available_walls, 7);
     }
 
     #[test]
@@ -156,10 +141,9 @@ pub mod tests {
             position: Vector::new(3, 1),
             goal_line: 0,
             number_of_available_walls: 0,
-            player_name: "Player 1",
         };
         act_pawn.move_pawn(Vector::new(2, -1));
-        assert_eq!(act_pawn.position(), Vector::new(5, 0));
+        assert_eq!(act_pawn.position, Vector::new(5, 0));
     }
 
     #[test]
@@ -168,10 +152,9 @@ pub mod tests {
             position: Vector::new(0, 1),
             goal_line: 0,
             number_of_available_walls: 0,
-            player_name: "Player 1",
         };
         act_pawn.move_pawn(Vector::new(2, 0));
-        assert_eq!(act_pawn.position(), Vector::new(2, 1));
+        assert_eq!(act_pawn.position, Vector::new(2, 1));
     }
 
     #[test]
@@ -180,10 +163,9 @@ pub mod tests {
             position: Vector::new(0, 0),
             goal_line: 0,
             number_of_available_walls: 2,
-            player_name: "Player 1",
         };
         act_pawn.inc_number_of_walls();
-        assert_eq!(act_pawn.number_of_available_walls(), 3);
+        assert_eq!(act_pawn.number_of_available_walls, 3);
     }
 
     #[test]
@@ -192,9 +174,8 @@ pub mod tests {
             position: Vector::new(0, 0),
             goal_line: 0,
             number_of_available_walls: 2,
-            player_name: "Player 1",
         };
         act_pawn.dec_number_of_walls();
-        assert_eq!(act_pawn.number_of_available_walls(), 1);
+        assert_eq!(act_pawn.number_of_available_walls, 1);
     }
 }
