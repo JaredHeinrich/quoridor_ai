@@ -9,7 +9,6 @@ pub struct Pawn {
 }
 
 impl Pawn {
-    //constructor
     pub fn new(board_size: i16, pawn_side: Side, number_of_available_walls: i16) -> Self {
         let position: Vector = Self::calculate_start_coordinate(board_size, &pawn_side);
         let goal_line: i16 = Self::calculate_goal_line(board_size, &pawn_side);
@@ -48,17 +47,6 @@ impl Pawn {
     }
     pub fn dec_number_of_walls(&mut self) {
         self.number_of_available_walls = self.number_of_available_walls - 1;
-    }
-}
-
-#[cfg(test)]
-impl Default for Pawn {
-    fn default() -> Self {
-        Self {
-            position: Vector::default(),
-            number_of_available_walls: i16::default(),
-            goal_line: i16::default(),
-        }
     }
 }
 

@@ -13,10 +13,10 @@ pub enum Move {
 
 #[derive(Clone)]
 pub struct Game {
-    pawns: [Pawn; NUMBER_OF_PLAYERS],
-    current_pawn: usize,
-    board_size: i16,
-    walls: Vec<Wall>,
+    pub pawns: [Pawn; NUMBER_OF_PLAYERS],
+    pub current_pawn: usize,
+    pub board_size: i16,
+    pub walls: Vec<Wall>,
 }
 
 impl Game {
@@ -35,20 +35,16 @@ impl Game {
         }
     }
 
-    pub fn board_size(&self) -> i16 {
-        self.board_size
-    }
-
-    fn get_current_pawn(&self) -> &Pawn {
+    fn current_pawn(&self) -> &Pawn {
         &self.pawns[self.current_pawn]
     }
-    fn get_current_pawn_mut(&mut self) -> &mut Pawn {
+    fn current_pawn_mut(&mut self) -> &mut Pawn {
         &mut self.pawns[self.current_pawn]
     }
-    fn get_other_pawn(&self) -> &Pawn {
+    fn other_pawn(&self) -> &Pawn {
         &self.pawns[self.current_pawn + 1 % NUMBER_OF_PLAYERS]
     }
-    fn current_pawn_next(&mut self) {
+    fn set_current_pawn_next(&mut self) {
         self.current_pawn = self.current_pawn + 1 % NUMBER_OF_PLAYERS;
     }
 
@@ -60,18 +56,18 @@ impl Game {
     }
 
     fn move_current_pawn(&mut self, new_position: Vector) -> Result<()> {
-        let allowed_positions = self.get_valid_next_positions();
+        let allowed_positions = self.valid_next_positions();
         if !allowed_positions.contains(&new_position) {
             return Err(MoveError::InvalidPawnMove(new_position.x, new_position.y).into());
         }
         self.pawns[self.current_pawn].set_pawn_position(new_position);
-        self.current_pawn_next();
+        self.set_current_pawn_next();
         Ok(())
     }
 
-    pub fn get_valid_next_positions(&self) -> Vec<Vector> {
+    pub fn valid_next_positions(&self) -> Vec<Vector> {
         let mut res: Vec<Vector> = Vec::new();
-        let current_pawn_position = self.get_current_pawn().position;
+        let current_pawn_position = self.current_pawn().position;
         for direction in [
             Direction::Up,
             Direction::Right,
@@ -98,7 +94,7 @@ impl Game {
             return;
         }
         //check if move ends on other pawn
-        if new_pos == self.get_other_pawn().position {
+        if new_pos == self.other_pawn().position {
             self.handle_jump(result, move_direction, new_pos);
             return;
         }
@@ -121,13 +117,13 @@ impl Game {
     }
 
     fn is_position_on_pawn_grid(&self, position: Vector) -> bool {
-        let grid_size = self.board_size();
+        let grid_size = self.board_size;
         let (x, y) = (position.x, position.y);
         x >= 0 && y >= 0 && x < grid_size && y < grid_size
     }
 
     fn is_position_on_wall_grid(&self, position: Vector) -> bool {
-        let grid_size = self.board_size() - 1;
+        let grid_size = self.board_size - 1;
         let (x, y) = (position.x, position.y);
         x >= 0 && y >= 0 && x < grid_size && y < grid_size
     }
@@ -159,9 +155,9 @@ impl Game {
                 MoveError::InvalidWallMove(new_wall.position.x, new_wall.position.y).into(),
             );
         }
-        self.get_current_pawn_mut().dec_number_of_walls();
+        self.current_pawn_mut().dec_number_of_walls();
         self.walls.push(new_wall.clone());
-        self.current_pawn_next();
+        self.set_current_pawn_next();
         Ok(())
     }
 
@@ -187,7 +183,7 @@ impl Game {
                 return true;
             }
 
-            let valid_positions = self.get_valid_next_positions_without_other(*current_position);
+            let valid_positions = self.valid_next_positions_without_other_pawn(*current_position);
 
             //add valid_positions to visited_positions if they are not already added
             for position in valid_positions {
@@ -200,8 +196,7 @@ impl Game {
         false
     }
 
-    //get_valid_neighbor_positions ohne beachtung der anderen Figuren
-    fn get_valid_next_positions_without_other(&self, pawn_pos: Vector) -> Vec<Vector> {
+    fn valid_next_positions_without_other_pawn(&self, pawn_pos: Vector) -> Vec<Vector> {
         let directions = [
             Direction::Up,
             Direction::Right,
@@ -266,9 +261,8 @@ impl Game {
         }
         false
     }
-} // impl Game
+}
 
-//Tests für private Methoden.
 #[cfg(test)]
 pub mod tests {
     use super::*;
@@ -277,12 +271,13 @@ pub mod tests {
 
     #[test]
     fn does_wall_block_move_positive_up_1() {
-        let pawns = [Pawn::default(), Pawn::default()];
+        let board_size = 9;
+        let pawns = [Pawn::new(board_size, Side::Top, 10), Pawn::new(board_size, Side::Bottom, 10)];
         let walls = vec![Wall::new(Vector::new(3, 3), Orientation::Horizontal)];
         let game = Game {
             pawns,
             walls,
-            board_size: 9,
+            board_size,
             current_pawn: 0,
         };
         assert!(game.does_wall_block_move(&Direction::Up, Vector::new(4, 4)));
@@ -290,12 +285,13 @@ pub mod tests {
 
     #[test]
     fn does_wall_block_move_positive_up_2() {
-        let pawns = [Pawn::default(), Pawn::default()];
+        let board_size = 9;
+        let pawns = [Pawn::new(board_size, Side::Top, 10), Pawn::new(board_size, Side::Bottom, 10)];
         let walls = vec![Wall::new(Vector::new(4, 3), Orientation::Horizontal)];
         let game = Game {
             pawns,
             walls,
-            board_size: 9,
+            board_size,
             current_pawn: 0,
         };
         assert!(game.does_wall_block_move(&Direction::Up, Vector::new(4, 4)));
@@ -303,12 +299,13 @@ pub mod tests {
 
     #[test]
     fn does_wall_block_move_positive_right_1() {
-        let pawns = [Pawn::default(), Pawn::default()];
+        let board_size = 9;
+        let pawns = [Pawn::new(board_size, Side::Top, 10), Pawn::new(board_size, Side::Bottom, 10)];
         let walls = vec![Wall::new(Vector::new(4, 4), Orientation::Vertical)];
         let game = Game {
             pawns,
             walls,
-            board_size: 9,
+            board_size,
             current_pawn: 0,
         };
         assert!(game.does_wall_block_move(&Direction::Right, Vector::new(4, 4)));
@@ -316,12 +313,13 @@ pub mod tests {
 
     #[test]
     fn does_wall_block_move_positive_right_2() {
-        let pawns = [Pawn::default(), Pawn::default()];
+        let board_size = 9;
+        let pawns = [Pawn::new(board_size, Side::Top, 10), Pawn::new(board_size, Side::Bottom, 10)];
         let walls = vec![Wall::new(Vector::new(4, 3), Orientation::Vertical)];
         let game = Game {
             pawns,
             walls,
-            board_size: 9,
+            board_size,
             current_pawn: 0,
         };
         assert!(game.does_wall_block_move(&Direction::Right, Vector::new(4, 4)));
@@ -329,12 +327,13 @@ pub mod tests {
 
     #[test]
     fn does_wall_block_move_positive_down_1() {
-        let pawns = [Pawn::default(), Pawn::default()];
+        let board_size = 9;
+        let pawns = [Pawn::new(board_size, Side::Top, 10), Pawn::new(board_size, Side::Bottom, 10)];
         let walls = vec![Wall::new(Vector::new(4, 4), Orientation::Horizontal)];
         let game = Game {
             pawns,
             walls,
-            board_size: 9,
+            board_size,
             current_pawn: 0,
         };
         assert!(game.does_wall_block_move(&Direction::Down, Vector::new(4, 4)));
@@ -342,12 +341,13 @@ pub mod tests {
 
     #[test]
     fn does_wall_block_move_positive_down_2() {
-        let pawns = [Pawn::default(), Pawn::default()];
+        let board_size = 9;
+        let pawns = [Pawn::new(board_size, Side::Top, 10), Pawn::new(board_size, Side::Bottom, 10)];
         let walls = vec![Wall::new(Vector::new(3, 4), Orientation::Horizontal)];
         let game = Game {
             pawns,
             walls,
-            board_size: 9,
+            board_size,
             current_pawn: 0,
         };
         assert!(game.does_wall_block_move(&Direction::Down, Vector::new(4, 4)));
@@ -355,12 +355,13 @@ pub mod tests {
 
     #[test]
     fn does_wall_block_move_positive_left_1() {
-        let pawns = [Pawn::default(), Pawn::default()];
+        let board_size = 9;
+        let pawns = [Pawn::new(board_size, Side::Top, 10), Pawn::new(board_size, Side::Bottom, 10)];
         let walls = vec![Wall::new(Vector::new(3, 3), Orientation::Vertical)];
         let game = Game {
             pawns,
             walls,
-            board_size: 9,
+            board_size,
             current_pawn: 0,
         };
         assert!(game.does_wall_block_move(&Direction::Left, Vector::new(4, 4)));
@@ -368,12 +369,13 @@ pub mod tests {
 
     #[test]
     fn does_wall_block_move_positive_left_2() {
-        let pawns = [Pawn::default(), Pawn::default()];
+        let board_size = 9;
+        let pawns = [Pawn::new(board_size, Side::Top, 10), Pawn::new(board_size, Side::Bottom, 10)];
         let walls = vec![Wall::new(Vector::new(3, 4), Orientation::Vertical)];
         let game = Game {
             pawns,
             walls,
-            board_size: 9,
+            board_size,
             current_pawn: 0,
         };
         assert!(game.does_wall_block_move(&Direction::Left, Vector::new(4, 4)));
@@ -381,12 +383,13 @@ pub mod tests {
 
     #[test]
     fn handle_jump_no_jump() {
-        let pawns = [Pawn::default(), Pawn::default()];
+        let board_size = 9;
+        let pawns = [Pawn::new(board_size, Side::Top, 10), Pawn::new(board_size, Side::Bottom, 10)];
         let walls = vec![];
         let game = Game {
             pawns,
             walls,
-            board_size: 9,
+            board_size,
             current_pawn: 0,
         };
         let mut act_moves = vec![];
@@ -398,12 +401,13 @@ pub mod tests {
 
     #[test]
     fn handle_jump_blocked_by_border() {
-        let pawns = [Pawn::default(), Pawn::default()];
+        let board_size = 9;
+        let pawns = [Pawn::new(board_size, Side::Top, 10), Pawn::new(board_size, Side::Bottom, 10)];
         let walls = vec![];
         let game = Game {
             pawns,
             walls,
-            board_size: 9,
+            board_size,
             current_pawn: 0,
         };
         let mut act_moves = vec![];
@@ -417,12 +421,13 @@ pub mod tests {
 
     #[test]
     fn handle_jump_corner() {
-        let pawns = [Pawn::default(), Pawn::default()];
+        let board_size = 9;
+        let pawns = [Pawn::new(board_size, Side::Top, 10), Pawn::new(board_size, Side::Bottom, 10)];
         let walls = vec![];
         let game = Game {
             pawns,
             walls,
-            board_size: 9,
+            board_size,
             current_pawn: 0,
         };
         let mut act_moves = vec![];
@@ -434,12 +439,13 @@ pub mod tests {
 
     #[test]
     fn handle_step_empty() {
-        let pawns = [Pawn::default(), Pawn::default()];
+        let board_size = 9;
+        let pawns = [Pawn::new(board_size, Side::Top, 10), Pawn::new(board_size, Side::Bottom, 10)];
         let walls = vec![];
         let game = Game {
             pawns,
             walls,
-            board_size: 9,
+            board_size,
             current_pawn: 0,
         };
         let mut act_moves = vec![];
@@ -451,8 +457,9 @@ pub mod tests {
 
     #[test]
     fn handle_step_with_jump() {
+        let board_size = 9;
         let pawns = [
-            Pawn::default(),
+            Pawn::new(board_size, Side::Bottom, 10),
             Pawn {
                 position: Vector::new(4, 3),
                 number_of_available_walls: 10,
@@ -463,7 +470,7 @@ pub mod tests {
         let game = Game {
             pawns,
             walls,
-            board_size: 9,
+            board_size,
             current_pawn: 0,
         };
         let mut act_moves = vec![];
@@ -475,12 +482,13 @@ pub mod tests {
 
     #[test]
     fn handle_step_with_wall() {
-        let pawns = [Pawn::default(), Pawn::default()];
+        let board_size = 9;
+        let pawns = [Pawn::new(board_size, Side::Top, 10), Pawn::new(board_size, Side::Bottom, 10)];
         let walls = vec![Wall::new(Vector::new(3, 3), Orientation::Horizontal)];
         let game = Game {
             pawns,
             walls,
-            board_size: 9,
+            board_size,
             current_pawn: 0,
         };
 
@@ -491,12 +499,13 @@ pub mod tests {
 
     #[test]
     fn handle_step_without_other_empty() {
-        let pawns = [Pawn::default(), Pawn::default()];
+        let board_size = 9;
+        let pawns = [Pawn::new(board_size, Side::Top, 10), Pawn::new(board_size, Side::Bottom, 10)];
         let walls = vec![];
         let game = Game {
             pawns,
             walls,
-            board_size: 9,
+            board_size,
             current_pawn: 0,
         };
         let act_move: Option<Vector> =
@@ -507,8 +516,9 @@ pub mod tests {
 
     #[test]
     fn handle_step_without_other_with_pawn() {
+        let board_size = 9;
         let pawns = [
-            Pawn::default(),
+            Pawn::new(board_size, Side::Bottom, 10),
             Pawn {
                 position: Vector::new(4, 3),
                 number_of_available_walls: 10,
@@ -519,7 +529,7 @@ pub mod tests {
         let game = Game {
             pawns,
             walls,
-            board_size: 9,
+            board_size,
             current_pawn: 0,
         };
         let act_move: Option<Vector> =
@@ -530,12 +540,13 @@ pub mod tests {
 
     #[test]
     fn handle_step_without_other_with_wall() {
-        let pawns = [Pawn::default(), Pawn::default()];
+        let board_size = 9;
+        let pawns = [Pawn::new(board_size, Side::Top, 10), Pawn::new(board_size, Side::Bottom, 10)];
         let walls = vec![Wall::new(Vector::new(3, 3), Orientation::Horizontal)];
         let game = Game {
             pawns,
             walls,
-            board_size: 9,
+            board_size,
             current_pawn: 0,
         };
         let act_move: Option<Vector> =
@@ -544,16 +555,17 @@ pub mod tests {
     }
 
     #[test]
-    fn get_valid_next_positions_without_other_empty() {
-        let pawns = [Pawn::default(), Pawn::default()];
+    fn valid_next_positions_without_other_pawn_empty() {
+        let board_size = 9;
+        let pawns = [Pawn::new(board_size, Side::Top, 10), Pawn::new(board_size, Side::Bottom, 10)];
         let walls = vec![];
         let game = Game {
             pawns,
             walls,
-            board_size: 9,
+            board_size,
             current_pawn: 0,
         };
-        let act_moves = game.get_valid_next_positions_without_other(Vector::new(4, 4));
+        let act_moves = game.valid_next_positions_without_other_pawn(Vector::new(4, 4));
         let exp_moves = [
             Vector::new(4, 3),
             Vector::new(4, 5),

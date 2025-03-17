@@ -1,4 +1,3 @@
-//Darstellung eines Vektors.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Vector {
     pub x: i16,
@@ -12,29 +11,27 @@ pub trait VectorUtility {
 }
 
 impl Vector {
-    //Konstruktor für den Vektor
     pub fn new(x: i16, y: i16) -> Self {
         Vector { x, y }
     }
 }
 
-//implementation der Vector Utility
 impl VectorUtility for Vector {
-    //Addiert zwei Vektoren und gibt das Ergebniss zurück.
+    //add to vectors per element
     fn add(&self, vector: Self) -> Self {
         Vector {
             x: self.x + vector.x,
             y: self.y + vector.y,
         }
     }
-    //Subtrahiert zwei Vektoren und gibt das Ergebniss zurück.
+    //subtract to vector per element
     fn subtract(&self, vector: Self) -> Self {
         Vector {
             x: self.x - vector.x,
             y: self.y - vector.y,
         }
     }
-    //Multipliziert einen Vektor mit -1
+    //revert vector by multiplication with -1
     fn revert(&self) -> Self {
         Vector {
             x: -self.x,
