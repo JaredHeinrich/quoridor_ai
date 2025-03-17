@@ -17,14 +17,14 @@ impl Vector {
 }
 
 impl VectorUtility for Vector {
-    //add to vectors per element
+    //add two vectors per element
     fn add(&self, vector: Self) -> Self {
         Vector {
             x: self.x + vector.x,
             y: self.y + vector.y,
         }
     }
-    //subtract to vector per element
+    //subtract two vector per element
     fn subtract(&self, vector: Self) -> Self {
         Vector {
             x: self.x - vector.x,
@@ -36,16 +36,6 @@ impl VectorUtility for Vector {
         Vector {
             x: -self.x,
             y: -self.y,
-        }
-    }
-}
-
-#[cfg(test)]
-impl Default for Vector {
-    fn default() -> Self {
-        Self {
-            x: i16::default(),
-            y: i16::default(),
         }
     }
 }

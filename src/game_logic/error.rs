@@ -7,4 +7,7 @@ pub enum MoveError {
 
     #[error("Invalid Wall Move to [{0}, {1}]")]
     InvalidWallMove(i16, i16),
+
+    #[error("Player {0} has no walls left")]
+    NoWallsLeft(i16),
 }

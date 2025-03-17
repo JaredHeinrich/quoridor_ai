@@ -4,8 +4,8 @@ use crate::utils::vectors::{Vector, VectorUtility};
 #[derive(Clone)]
 pub struct Pawn {
     pub position: Vector,
-    pub number_of_available_walls: i16,
     pub goal_line: i16,
+    pub number_of_available_walls: i16,
 }
 
 impl Pawn {
@@ -14,8 +14,8 @@ impl Pawn {
         let goal_line: i16 = Self::calculate_goal_line(board_size, &pawn_side);
         Self {
             position,
-            number_of_available_walls,
             goal_line,
+            number_of_available_walls,
         }
     }
 
@@ -127,8 +127,8 @@ pub mod tests {
     fn move_pawn_1() {
         let mut act_pawn = Pawn {
             position: Vector::new(3, 1),
-            goal_line: 0,
             number_of_available_walls: 0,
+            goal_line: 0,
         };
         act_pawn.move_pawn(Vector::new(2, -1));
         assert_eq!(act_pawn.position, Vector::new(5, 0));
@@ -138,8 +138,8 @@ pub mod tests {
     fn move_pawn_2() {
         let mut act_pawn = Pawn {
             position: Vector::new(0, 1),
-            goal_line: 0,
             number_of_available_walls: 0,
+            goal_line: 0,
         };
         act_pawn.move_pawn(Vector::new(2, 0));
         assert_eq!(act_pawn.position, Vector::new(2, 1));
@@ -149,8 +149,8 @@ pub mod tests {
     fn inc_number_of_walls() {
         let mut act_pawn = Pawn {
             position: Vector::new(0, 0),
-            goal_line: 0,
             number_of_available_walls: 2,
+            goal_line: 0,
         };
         act_pawn.inc_number_of_walls();
         assert_eq!(act_pawn.number_of_available_walls, 3);
@@ -160,8 +160,8 @@ pub mod tests {
     fn dec_number_of_walls() {
         let mut act_pawn = Pawn {
             position: Vector::new(0, 0),
-            goal_line: 0,
             number_of_available_walls: 2,
+            goal_line: 0,
         };
         act_pawn.dec_number_of_walls();
         assert_eq!(act_pawn.number_of_available_walls, 1);
