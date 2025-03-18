@@ -8,6 +8,6 @@ pub enum MatrixError {
     #[error("Can't add matrices with different dimensions")]
     AdditionError,
 
-    #[error("Can't create matrix, because columns * rows != number of values -> {0} * {1} != {2}")]
+    #[error("Can't create matrix, because rows * columns != number of values -> {0} * {1} != {2}")]
     CreationError(usize, usize, usize),
 }

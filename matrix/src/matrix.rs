@@ -9,9 +9,9 @@ pub struct Matrix {
 }
 
 impl Matrix {
-    pub fn new(columns: usize, rows: usize, values: Vec<f64>) -> Result<Self> {
+    pub fn new(rows: usize, columns: usize, values: Vec<f64>) -> Result<Self> {
         if columns * rows != values.len() {
-            return Err(MatrixError::CreationError(columns, rows, values.len()).into());
+            return Err(MatrixError::CreationError(rows, columns, values.len()).into());
         }
         Ok(Self {
             rows,
@@ -24,11 +24,13 @@ impl Matrix {
         if self.columns != other.rows {
             return Err(MatrixError::DotProductError.into());
         }
-        let mut result = Self {
-            rows: self.rows,
-            columns: other.columns,
-            values: vec![0.0; self.rows * other.columns],
-        };
+        let mut result = Self::new(
+            self.rows,
+            other.columns,
+            vec![0.0; self.rows * other.columns],
+        )
+        .unwrap();
+
         for row_index in 0..result.rows {
             for column_index in 0..result.columns {
                 *result.value_mut(column_index, row_index) = self
@@ -42,7 +44,7 @@ impl Matrix {
     }
 
     pub fn add(&self, other: &Self) -> Result<Self> {
-        if self.columns != other.columns || self.rows != other.rows {
+        if self.rows != other.rows || self.columns != other.columns {
             return Err(MatrixError::AdditionError.into());
         }
         let values = self
@@ -51,19 +53,15 @@ impl Matrix {
             .zip(other.values.iter())
             .map(|(x, y)| x + y)
             .collect();
-        Ok(Self {
-            rows: self.rows,
-            columns: self.columns,
-            values,
-        })
+        Self::new(self.rows, self.columns, values)
     }
 
-    pub fn value(&self, column_index: usize, row_index: usize) -> &f64 {
-        &self.values[self.calculate_index(column_index, row_index)]
+    pub fn value(&self, row_index: usize, column_index: usize) -> &f64 {
+        &self.values[self.calculate_index(row_index, column_index)]
     }
 
-    pub fn value_mut(&mut self, column_index: usize, row_index: usize) -> &mut f64 {
-        let index = self.calculate_index(column_index, row_index);
+    pub fn value_mut(&mut self, row_index: usize, column_index: usize) -> &mut f64 {
+        let index = self.calculate_index(row_index, column_index);
         &mut self.values[index]
     }
 
@@ -77,22 +75,22 @@ impl Matrix {
     pub fn iter_columns(&self) -> impl Iterator<Item = impl Iterator<Item = &f64>> {
         (0..self.columns).map(move |column_index| {
             (0..self.rows)
-                .map(move |row_index| &self.values[self.calculate_index(column_index, row_index)])
+                .map(move |row_index| &self.values[self.calculate_index(row_index, column_index)])
         })
     }
 
     pub fn iter_row(&self, row_index: usize) -> impl Iterator<Item = &f64> {
-        let row_start = self.calculate_index(0, row_index);
-        let row_end = self.calculate_index(0, row_index + 1);
+        let row_start = self.calculate_index(row_index, 0);
+        let row_end = self.calculate_index(row_index + 1, 0);
         (row_start..row_end).map(|index| &self.values[index])
     }
 
     pub fn iter_column(&self, column_index: usize) -> impl Iterator<Item = &f64> {
         (0..self.rows)
-            .map(move |row_index| &self.values[self.calculate_index(column_index, row_index)])
+            .map(move |row_index| &self.values[self.calculate_index(row_index, column_index)])
     }
 
-    pub fn calculate_index(&self, column_index: usize, row_index: usize) -> usize {
+    pub fn calculate_index(&self, row_index: usize, column_index: usize) -> usize {
         column_index + self.columns * row_index
     }
 }
@@ -103,14 +101,14 @@ mod tests {
 
     #[test]
     fn test_new_positiv() {
-        let matrix = Matrix::new(2, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        assert_eq!(matrix.columns, 2);
-        assert_eq!(matrix.rows, 3);
-        assert_eq!(matrix.values, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        let matrix = Matrix::new(2, 3, vec![-1.0, 2.0, 3.0, 4.4, -5.123, 6.0]).unwrap();
+        assert_eq!(matrix.columns, 3);
+        assert_eq!(matrix.rows, 2);
+        assert_eq!(matrix.values, vec![-1.0, 2.0, 3.0, 4.4, -5.123, 6.0]);
     }
 
     #[test]
-    fn test_new_negativ() {
+    fn test_new_wrong_value_length() {
         let matrix = Matrix::new(2, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0]);
         assert!(matrix.is_err());
     }
@@ -126,16 +124,16 @@ mod tests {
         let rows = 3;
         let columns = 5;
         let matrix: Matrix = Matrix {
-            values: vec![0.0; rows * columns],
             rows,
             columns,
+            values: vec![0.0; rows * columns],
         };
         assert_eq!(0, matrix.calculate_index(0, 0));
-        assert_eq!(4, matrix.calculate_index(4, 0));
+        assert_eq!(4, matrix.calculate_index(0, 4));
         assert_eq!(6, matrix.calculate_index(1, 1));
-        assert_eq!(10, matrix.calculate_index(0, 2));
+        assert_eq!(10, matrix.calculate_index(2, 0));
         assert_eq!(12, matrix.calculate_index(2, 2));
-        assert_eq!(14, matrix.calculate_index(4, 2));
+        assert_eq!(14, matrix.calculate_index(2, 4));
     }
 
     #[test]
@@ -149,11 +147,11 @@ mod tests {
         let rows = 3;
         let columns = 5;
         let matrix: Matrix = Matrix {
+            rows,
+            columns,
             values: vec![
                 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0,
             ],
-            rows,
-            columns,
         };
         let mut iterator = matrix.iter_row(0);
         assert_eq!(Some(&0.0), iterator.next());
@@ -181,11 +179,11 @@ mod tests {
         let rows = 3;
         let columns = 5;
         let matrix: Matrix = Matrix {
+            rows,
+            columns,
             values: vec![
                 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0,
             ],
-            rows,
-            columns,
         };
         let mut iterator = matrix.iter_column(0);
         assert_eq!(Some(&0.0), iterator.next());
@@ -211,11 +209,11 @@ mod tests {
         let rows = 3;
         let columns = 5;
         let matrix: Matrix = Matrix {
+            rows,
+            columns,
             values: vec![
                 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0,
             ],
-            rows,
-            columns,
         };
         let mut iterator = matrix.iter_rows();
         assert_eq!(
@@ -244,11 +242,11 @@ mod tests {
         let rows = 3;
         let columns = 5;
         let matrix: Matrix = Matrix {
+            rows,
+            columns,
             values: vec![
                 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0,
             ],
-            rows,
-            columns,
         };
         let mut iterator = matrix.iter_columns();
         assert_eq!(
@@ -300,24 +298,24 @@ mod tests {
         //  r
 
         let matrix_one = Matrix {
-            columns: 4,
             rows: 2,
+            columns: 4,
             values: vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0],
         };
 
         let matrix_two = Matrix {
-            columns: 1,
             rows: 4,
+            columns: 1,
             values: vec![8.0, 9.0, 10.0, 11.0],
         };
         let expected_result = Matrix {
-            columns: 1,
             rows: 2,
+            columns: 1,
             values: vec![62.0, 214.0],
         };
         let actual_result = matrix_one.multiply(&matrix_two).unwrap();
-        assert_eq!(expected_result.columns, actual_result.columns);
         assert_eq!(expected_result.rows, actual_result.rows);
+        assert_eq!(expected_result.columns, actual_result.columns);
         assert_eq!(expected_result.values, actual_result.values);
     }
 
@@ -337,23 +335,16 @@ mod tests {
         //  1|  9
         //  2| 10
         //  r
-        //
-        // expected result
-        //   |  0  c
-        // --+----
-        //  0| 62 = 0 + 9+ 20 + 33
-        //  1|214 = 32 + 45 + 60 + 77
-        //  r
 
         let matrix_one = Matrix {
-            columns: 4,
             rows: 2,
+            columns: 4,
             values: vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0],
         };
 
         let matrix_two = Matrix {
-            columns: 1,
             rows: 3,
+            columns: 1,
             values: vec![8.0, 9.0, 10.0],
         };
         let actual_result = matrix_one.multiply(&matrix_two);
@@ -384,26 +375,26 @@ mod tests {
         // r
 
         let matrix_one = Matrix {
-            columns: 3,
             rows: 2,
+            columns: 3,
             values: vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0],
         };
 
         let matrix_two = Matrix {
-            columns: 3,
             rows: 2,
+            columns: 3,
             values: vec![5.0, 4.0, 3.0, 2.0, 1.0, 0.0],
         };
 
         let expected_result = Matrix {
-            columns: 3,
             rows: 2,
+            columns: 3,
             values: vec![5.0, 5.0, 5.0, 5.0, 5.0, 5.0],
         };
         let actual_result = matrix_one.add(&matrix_two).unwrap();
 
-        assert_eq!(expected_result.columns, actual_result.columns);
         assert_eq!(expected_result.rows, actual_result.rows);
+        assert_eq!(expected_result.columns, actual_result.columns);
         assert_eq!(expected_result.values, actual_result.values);
     }
 
@@ -423,14 +414,14 @@ mod tests {
         // r
 
         let matrix_one = Matrix {
-            columns: 3,
             rows: 2,
+            columns: 3,
             values: vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0],
         };
 
         let matrix_two = Matrix {
-            columns: 3,
             rows: 1,
+            columns: 3,
             values: vec![2.0, 1.0, 0.0],
         };
 
