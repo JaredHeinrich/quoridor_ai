@@ -1,4 +1,4 @@
-use crate::utils::vectors::{Vector, VectorUtility};
+use crate::vector::{Vector, VectorUtility};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Orientation {

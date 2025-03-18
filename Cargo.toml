@@ -1,8 +1,5 @@
-[package]
-name = "quoridor_ai"
-version = "0.1.0"
-edition = "2021"
+[workspace]
 
-[dependencies]
-anyhow = "1.0.96"
-thiserror = "2.0.11"
+members = [
+    "quoridor",
+]
