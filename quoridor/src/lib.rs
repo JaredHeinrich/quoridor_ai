@@ -3,7 +3,7 @@ const NUMBER_OF_PLAYERS: usize = 2;
 pub mod direction;
 pub mod error;
 pub mod game_state;
-pub mod side;
 pub mod pawn;
+pub mod side;
 pub mod vector;
 pub mod wall;
