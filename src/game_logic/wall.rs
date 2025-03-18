@@ -8,12 +8,11 @@ pub enum Orientation {
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Wall {
-    position: Vector,
-    orientation: Orientation,
+    pub position: Vector,
+    pub orientation: Orientation,
 }
 
 impl Wall {
-    //constructor
     pub fn new(position: Vector, orientation: Orientation) -> Self {
         Self {
             position,
@@ -21,16 +20,7 @@ impl Wall {
         }
     }
 
-    //getter
-    pub fn position(&self) -> Vector {
-        self.position
-    }
-    pub fn orientation(&self) -> Orientation {
-        self.orientation
-    }
-    //getter
-
-    //returns the directional vector of the wall
+    //returns the directional of the wall as unit vector
     fn directional_vector(&self) -> Vector {
         match self.orientation {
             Orientation::Vertical => Vector::new(0, 1),
@@ -44,7 +34,7 @@ impl Wall {
         let pos_s = self.position;
         let pos_w = wall.position;
         let dv_s = self.directional_vector();
-        //Walls must not intersect or overlap
+        //walls must not intersect or overlap
         if pos_s == pos_w {
             return true;
         };
