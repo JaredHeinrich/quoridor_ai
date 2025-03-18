@@ -1,5 +1,5 @@
-use crate::utils::side::Side;
-use crate::utils::vectors::{Vector, VectorUtility};
+use crate::side::Side;
+use crate::vector::{Vector, VectorUtility};
 
 #[derive(Clone)]
 pub struct Pawn {
@@ -53,7 +53,7 @@ impl Pawn {
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::utils::side::Side::*;
+    use crate::side::Side::*;
 
     #[test]
     fn calculate_start_coordinate_bottom() {

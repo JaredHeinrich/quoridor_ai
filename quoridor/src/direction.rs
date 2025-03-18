@@ -1,4 +1,4 @@
-use crate::utils::vectors::Vector;
+use crate::vector::Vector;
 
 //Directions in which a Pawn can move
 #[derive(Debug, PartialEq, Clone, Copy)]

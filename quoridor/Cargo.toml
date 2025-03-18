@@ -1,0 +1,8 @@
+[package]
+name = "quoridor"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.96"
+thiserror = "2.0.11"

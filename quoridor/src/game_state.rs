@@ -1,9 +1,11 @@
 use anyhow::Result;
 
 use super::error::MoveError;
-use super::wall::Orientation;
-use super::{pawn::Pawn, wall::Wall};
-use crate::utils::{directions::Direction, side::Side, vectors::Vector, vectors::VectorUtility};
+use crate::direction::Direction;
+use crate::pawn::Pawn;
+use crate::side::Side;
+use crate::vector::{Vector, VectorUtility};
+use crate::wall::{Orientation, Wall};
 use crate::NUMBER_OF_PLAYERS;
 
 pub enum Move {
@@ -271,8 +273,8 @@ impl Game {
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::game_logic::wall::{Orientation, Wall};
-    use crate::utils::directions::Direction;
+    use crate::direction::Direction;
+    use crate::wall::{Orientation, Wall};
 
     #[test]
     fn does_wall_block_move_positive_up_1() {
