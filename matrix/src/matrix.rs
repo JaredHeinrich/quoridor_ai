@@ -1,4 +1,5 @@
 use anyhow::Result;
+use rand::Rng;
 
 use crate::error::MatrixError;
 
@@ -18,6 +19,16 @@ impl Matrix {
             columns,
             values,
         })
+    }
+
+    pub fn random(rows: usize, columns: usize) -> Self {
+        let mut values = vec![0.0; rows * columns];
+        values.iter_mut().for_each(|value| *value = rand::rng().random_range(-1.0..1.0));
+        Self { rows, columns, values }
+    }
+
+    pub fn zero(rows: usize, columns: usize) -> Self {
+        Self { rows, columns, values: vec![0.0; rows * columns]}
     }
 
     pub fn multiply(&self, other: &Self) -> Result<Self> {
