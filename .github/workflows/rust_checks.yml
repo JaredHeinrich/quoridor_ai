@@ -28,3 +28,9 @@ jobs:
     - uses: actions/checkout@v4
     - name: Run formatting checks
       run: cargo fmt --all -- --check
+  documentation-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and generate docs
+        run: cargo doc --no-deps --document-private-items
