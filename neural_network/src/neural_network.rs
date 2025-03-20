@@ -4,17 +4,17 @@ use matrix::matrix::Matrix;
 use crate::error::NNError;
 
 pub struct NeuralNetwork {
-    pub layers: Vec<usize>,
+    pub layer_sizes: Vec<usize>,
     pub weights: Vec<Matrix>,
     pub biases: Vec<Matrix>,
 }
 
 impl NeuralNetwork {
-    /// 0      : input layer
-    /// 1..n-1 : hidden layers
-    /// n      : output layer
-    ///
     /// creates a neural network from given layer sizes.
+    /// layer 0: input layer
+    /// layer 1..n-1: hidden layers
+    /// layer n: output layer
+    ///
     ///
     /// 311 will look something like this:
     ///
@@ -34,27 +34,27 @@ impl NeuralNetwork {
     /// The goal is that weights[0] * input_layer + biases[0] will result in the output values from
     /// layer 1
     ///
-    pub fn new(layers: Vec<usize>) -> Result<Self> {
-        if layers.len() < 2 {
-            return Err(NNError::CreationToFewLayersError(layers.len()).into());
+    pub fn new(layer_sizes: Vec<usize>) -> Result<Self> {
+        if layer_sizes.len() < 2 {
+            return Err(NNError::CreationToFewLayersError(layer_sizes.len()).into());
         }
-        if let Some(index) = layers.iter().find(|layer| **layer == 0) {
+        if let Some(index) = layer_sizes.iter().find(|size| **size == 0) {
             return Err(NNError::CreationEmptyLayerError(*index).into());
         }
 
-        let (weights, biases): (Vec<Matrix>, Vec<Matrix>) = layers
+        let (weights, biases): (Vec<Matrix>, Vec<Matrix>) = layer_sizes
             .windows(2)
             .map(|window| {
                 let prev_nodes: usize = window[0];
                 let current_nodes: usize = window[1];
                 (
-                    Matrix::random(current_nodes, prev_nodes),
-                    Matrix::zero(current_nodes, 1),
+                    Matrix::random(current_nodes, prev_nodes), // weights
+                    Matrix::zero(current_nodes, 1), // biases
                 )
             })
             .unzip();
         Ok(NeuralNetwork {
-            layers,
+            layer_sizes,
             weights,
             biases,
         })
@@ -69,8 +69,8 @@ impl NeuralNetwork {
                 NNError::InvalidInputVectorShape(input_values.rows, input_values.columns).into(),
             );
         }
-        if input_values.rows != self.layers[1] {
-            return Err(NNError::InvalidInputVectorSize(self.layers[1], input_values.rows).into());
+        if input_values.rows != self.layer_sizes[0] {
+            return Err(NNError::InvalidInputVectorSize(self.layer_sizes[1], input_values.rows).into());
         }
 
         let mut result = input_values;
