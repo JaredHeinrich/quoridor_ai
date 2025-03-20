@@ -1,4 +1,7 @@
+use anyhow::Result;
 use matrix::matrix::Matrix;
+
+use crate::error::NNError;
 
 pub struct NeuralNetwork {
     pub layers: Vec<usize>,
@@ -31,7 +34,14 @@ impl NeuralNetwork {
     /// The goal is that weights[0] * input_layer + biases[0] will result in the output values from
     /// layer 1
     ///
-    pub fn new(layers: Vec<usize>) -> Self {
+    pub fn new(layers: Vec<usize>) -> Result<Self> {
+        if layers.len() < 2 {
+            return Err(NNError::CreationToFewLayersError(layers.len()).into());
+        }
+        if let Some(index) = layers.iter().find(|layer| **layer == 0) {
+            return Err(NNError::CreationEmptyLayerError(*index).into());
+        }
+
         let (weights, biases): (Vec<Matrix>, Vec<Matrix>) = layers
             .windows(2)
             .map(|window| {
@@ -43,19 +53,26 @@ impl NeuralNetwork {
                 )
             })
             .unzip();
-        NeuralNetwork {
+        Ok(NeuralNetwork {
             layers,
             weights,
             biases,
-        }
+        })
     }
 
     /// Calculates the output values for specific input values.
     /// For each Layer the next output values are calculated this way:
     /// weights * input_values + biases
-    pub fn process(&self, input_values: Matrix) -> Matrix {
-        assert_eq!(input_values.columns, 1);
-        assert_eq!(input_values.rows, self.layers[1]);
+    pub fn process(&self, input_values: Matrix) -> Result<Matrix> {
+        if input_values.columns != 1 {
+            return Err(
+                NNError::InvalidInputVectorShape(input_values.rows, input_values.columns).into(),
+            );
+        }
+        if input_values.rows != self.layers[1] {
+            return Err(NNError::InvalidInputVectorSize(self.layers[1], input_values.rows).into());
+        }
+
         let mut result = input_values;
         self.weights
             .iter()
@@ -67,6 +84,6 @@ impl NeuralNetwork {
                     .add(bias_matrix)
                     .unwrap();
             });
-        result
+        Ok(result)
     }
 }
