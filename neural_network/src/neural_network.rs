@@ -25,19 +25,29 @@ impl NeuralNetwork {
     /// In this scenario the matrices look like the following.
     ///
     /// weights[0]  biases[0]  weights[1]  biases[1]
-    /// 
+    ///
     ///   x x x        x           x          x
     ///
     /// The goal is that weights[0] * input_layer + biases[0] will result in the output values from
     /// layer 1
     ///
     pub fn new(layers: Vec<usize>) -> Self {
-        let (weights, biases): (Vec<Matrix>, Vec<Matrix>) = layers.windows(2).map(|window| {
-            let prev_nodes: usize = window[0];
-            let current_nodes: usize = window[1];
-            (Matrix::random(current_nodes, prev_nodes), Matrix::zero(current_nodes, 1))
-        }).unzip();
-        NeuralNetwork { layers, weights, biases }
+        let (weights, biases): (Vec<Matrix>, Vec<Matrix>) = layers
+            .windows(2)
+            .map(|window| {
+                let prev_nodes: usize = window[0];
+                let current_nodes: usize = window[1];
+                (
+                    Matrix::random(current_nodes, prev_nodes),
+                    Matrix::zero(current_nodes, 1),
+                )
+            })
+            .unzip();
+        NeuralNetwork {
+            layers,
+            weights,
+            biases,
+        }
     }
 
     /// Calculates the output values for specific input values.
@@ -47,9 +57,16 @@ impl NeuralNetwork {
         assert_eq!(input_values.columns, 1);
         assert_eq!(input_values.rows, self.layers[1]);
         let mut result = input_values;
-        self.weights.iter().zip(self.biases.iter()).for_each(|(weight_matrix, bias_matrix)| {
-            result = weight_matrix.multiply(&result).unwrap().add(bias_matrix).unwrap();
-        });
+        self.weights
+            .iter()
+            .zip(self.biases.iter())
+            .for_each(|(weight_matrix, bias_matrix)| {
+                result = weight_matrix
+                    .multiply(&result)
+                    .unwrap()
+                    .add(bias_matrix)
+                    .unwrap();
+            });
         result
     }
 }
