@@ -17,6 +17,7 @@ impl NeuralNetwork {
     ///
     /// # Example:
     /// ```
+    /// use neural_network::neural_network::NeuralNetwork;
     /// let nn = NeuralNetwork::new(vec![3, 1, 1]);
     /// ```
     /// The created network will take an input vector with 3 values.
@@ -46,7 +47,7 @@ impl NeuralNetwork {
                 let current_size: usize = window[1];
                 (
                     Matrix::random(current_size, prev_size), // weights
-                    Matrix::zero(current_size, 1), // biases
+                    Matrix::zero(current_size, 1),           // biases
                 )
             })
             .unzip();
@@ -70,7 +71,9 @@ impl NeuralNetwork {
             );
         }
         if input_vector.rows != self.layer_sizes[0] {
-            return Err(NNError::InvalidInputVectorSize(self.layer_sizes[1], input_vector.rows).into());
+            return Err(
+                NNError::InvalidInputVectorSize(self.layer_sizes[1], input_vector.rows).into(),
+            );
         }
 
         let mut result = input_vector;
