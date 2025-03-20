@@ -20,8 +20,8 @@ impl Pawn {
     }
 
     fn calculate_start_coordinate(board_size: i16, pawn_side: &Side) -> Vector {
-        //half_board is the index at the half of the board | Example board_size = 9 => 0 1 2 3 4 5 6 7 8 => half_board = 4
-        //board_size needs to be uneven for this to work
+        // half_board is the index at the half of the board | Example board_size = 9 => 0 1 2 3 4 5 6 7 8 => half_board = 4
+        // board_size needs to be uneven for this to work
         let half_board: i16 = board_size / 2;
         match pawn_side {
             Side::Top => Vector::new(half_board, 0),

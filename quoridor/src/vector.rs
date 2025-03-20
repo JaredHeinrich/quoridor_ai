@@ -17,21 +17,21 @@ impl Vector {
 }
 
 impl VectorUtility for Vector {
-    //add two vectors per element
+    // Add two vectors per element
     fn add(&self, vector: Self) -> Self {
         Vector {
             x: self.x + vector.x,
             y: self.y + vector.y,
         }
     }
-    //subtract two vector per element
+    // Subtract two vector per element
     fn subtract(&self, vector: Self) -> Self {
         Vector {
             x: self.x - vector.x,
             y: self.y - vector.y,
         }
     }
-    //revert vector by multiplication with -1
+    // Revert vector by multiplication with -1
     fn revert(&self) -> Self {
         Vector {
             x: -self.x,

@@ -1,4 +1,4 @@
-//this can't be changed without major changes in the rest of the code
+// This can't be changed without major changes in the rest of the code
 const NUMBER_OF_PLAYERS: usize = 2;
 pub mod direction;
 pub mod error;
