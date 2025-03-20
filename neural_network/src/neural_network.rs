@@ -45,11 +45,11 @@ impl NeuralNetwork {
         let (weights, biases): (Vec<Matrix>, Vec<Matrix>) = layer_sizes
             .windows(2)
             .map(|window| {
-                let prev_nodes: usize = window[0];
-                let current_nodes: usize = window[1];
+                let prev_size: usize = window[0];
+                let current_size: usize = window[1];
                 (
-                    Matrix::random(current_nodes, prev_nodes), // weights
-                    Matrix::zero(current_nodes, 1), // biases
+                    Matrix::random(current_size, prev_size), // weights
+                    Matrix::zero(current_size, 1), // biases
                 )
             })
             .unzip();
@@ -60,20 +60,20 @@ impl NeuralNetwork {
         })
     }
 
-    /// Calculates the output values for specific input values.
-    /// For each Layer the next output values are calculated this way:
-    /// weights * input_values + biases
-    pub fn process(&self, input_values: Matrix) -> Result<Matrix> {
-        if input_values.columns != 1 {
+    /// Calculates the output vector for specific input vector.
+    /// For each Layer the next output vector is calculated this way:
+    /// weights * input_vector + biases
+    pub fn feed_forward(&self, input_vector: Matrix) -> Result<Matrix> {
+        if input_vector.columns != 1 {
             return Err(
-                NNError::InvalidInputVectorShape(input_values.rows, input_values.columns).into(),
+                NNError::InvalidInputVectorShape(input_vector.rows, input_vector.columns).into(),
             );
         }
-        if input_values.rows != self.layer_sizes[0] {
-            return Err(NNError::InvalidInputVectorSize(self.layer_sizes[1], input_values.rows).into());
+        if input_vector.rows != self.layer_sizes[0] {
+            return Err(NNError::InvalidInputVectorSize(self.layer_sizes[1], input_vector.rows).into());
         }
 
-        let mut result = input_values;
+        let mut result = input_vector;
         self.weights
             .iter()
             .zip(self.biases.iter())
