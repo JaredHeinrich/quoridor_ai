@@ -1,8 +1,14 @@
+use std::{f64, process::Output};
+
 use anyhow::Result;
 use matrix::matrix::Matrix;
 
-use crate::error::NNError;
+use crate::{
+    activation::{relu, sigmoid},
+    error::NNError,
+};
 
+#[derive(Debug)]
 pub struct NeuralNetwork {
     pub layer_sizes: Vec<usize>,
     pub weights: Vec<Matrix>,
@@ -18,7 +24,7 @@ impl NeuralNetwork {
     /// # Example:
     /// ```
     /// use neural_network::neural_network::NeuralNetwork;
-    /// let nn = NeuralNetwork::new(vec![3, 1, 1]);
+    /// let nn = NeuralNetwork::new(&vec![3, 1, 1]);
     /// ```
     /// The created network will take an input vector with 3 values.
     /// Has 1 hidden layer with 1 node, and 1 output layer with 1 node.
@@ -32,13 +38,14 @@ impl NeuralNetwork {
     ///
     /// weights[0]  biases[0]  weights[1]  biases[1]
     ///   x x x        x           x          x
-    pub fn new(layer_sizes: Vec<usize>) -> Result<Self> {
+    pub fn new(layer_sizes: &Vec<usize>) -> Result<Self> {
         if layer_sizes.len() < 2 {
-            return Err(NNError::CreationToFewLayersError(layer_sizes.len()).into());
+            return Err(NNError::CreationTooFewLayersError(layer_sizes.len()).into());
         }
         if let Some(index) = layer_sizes.iter().find(|size| **size == 0) {
             return Err(NNError::CreationEmptyLayerError(*index).into());
         }
+        let layer_sizes = layer_sizes.clone();
 
         let (weights, biases): (Vec<Matrix>, Vec<Matrix>) = layer_sizes
             .windows(2)
@@ -77,17 +84,99 @@ impl NeuralNetwork {
         }
 
         let mut result = input_vector;
-        self.weights
-            .iter()
-            .zip(self.biases.iter())
-            .for_each(|(weight_matrix, bias_matrix)| {
-                result = weight_matrix
-                    .multiply(&result)
-                    .unwrap()
-                    .add(bias_matrix)
-                    .unwrap();
-            });
-        todo!("Use Sigmoid or ReLU function");
+        let mut layer_iter = self.weights.iter().zip(self.biases.iter());
+        let (output_layer_weigth_matrix, output_layer_bias_matrix) =
+            layer_iter.next_back().unwrap();
+
+        while let Some((weight_matrix, bias_matrix)) = layer_iter.next() {
+            process_layer(&mut result, weight_matrix, bias_matrix, relu);
+        }
+        process_layer(
+            &mut result,
+            output_layer_weigth_matrix,
+            output_layer_bias_matrix,
+            sigmoid,
+        );
         Ok(result)
+    }
+}
+
+fn process_layer(
+    result_buffer: &mut Matrix,
+    weight_matrix: &Matrix,
+    bias_matrix: &Matrix,
+    activation_function: impl Fn(f64) -> f64,
+) {
+    *result_buffer = weight_matrix
+        .multiply(&result_buffer)
+        .unwrap()
+        .add(bias_matrix)
+        .unwrap();
+    result_buffer
+        .values
+        .iter_mut()
+        .for_each(|value| *value = activation_function(*value));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new_zero_layers() {
+        let layer_sizes = vec![];
+        let nn = NeuralNetwork::new(&layer_sizes);
+        assert!(nn.is_err());
+        let error = nn.unwrap_err();
+        let error = error.downcast::<NNError>();
+        assert!(matches!(error, Ok(NNError::CreationTooFewLayersError(_))));
+        if let Ok(NNError::CreationTooFewLayersError(x)) = error {
+            assert_eq!(x, layer_sizes.len());
+        }
+    }
+
+    #[test]
+    fn test_new_one_layer() {
+        let layer_sizes = vec![1];
+        let nn = NeuralNetwork::new(&layer_sizes);
+        assert!(nn.is_err());
+        let error = nn.unwrap_err();
+        let error = error.downcast::<NNError>();
+        assert!(matches!(error, Ok(NNError::CreationTooFewLayersError(_))));
+        if let Ok(NNError::CreationTooFewLayersError(x)) = error {
+            assert_eq!(x, layer_sizes.len());
+        }
+    }
+
+    #[test]
+    fn test_new_empty_layer() {
+        let layer_sizes = vec![1, 2, 0];
+        let nn = NeuralNetwork::new(&layer_sizes);
+        assert!(nn.is_err());
+        let error = nn.unwrap_err();
+        let error = error.downcast::<NNError>();
+        assert!(matches!(error, Ok(NNError::CreationEmptyLayerError(_))));
+        if let Ok(NNError::CreationTooFewLayersError(x)) = error {
+            assert_eq!(x, *layer_sizes.iter().find(|v| **v == 0).unwrap());
+        }
+    }
+
+    #[test]
+    fn test_new() {
+        let layer_sizes = vec![3, 2, 2, 2];
+        let nn = NeuralNetwork::new(&layer_sizes);
+        assert!(nn.is_ok());
+        let nn = nn.unwrap();
+        assert_eq!(nn.layer_sizes, layer_sizes);
+        assert_eq!(nn.weights.len(), layer_sizes.len() - 1);
+        assert_eq!(nn.biases.len(), layer_sizes.len() - 1);
+        assert!(nn.weights.iter().all(|bias_matrix| bias_matrix
+            .values
+            .iter()
+            .all(|value| *value >= -1.0 && *value <= 1.0)));
+        assert!(nn
+            .biases
+            .iter()
+            .all(|bias_matrix| bias_matrix.values.iter().all(|value| *value == 0.0)));
     }
 }

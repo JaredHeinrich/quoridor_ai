@@ -3,6 +3,7 @@ use rand::Rng;
 
 use crate::error::MatrixError;
 
+#[derive(Debug)]
 pub struct Matrix {
     pub rows: usize,
     pub columns: usize,
