@@ -23,7 +23,7 @@ pub struct Game {
 
 impl Game {
     pub fn new(board_size: i16, number_of_walls_per_player: i16) -> Self {
-        //initialization of the two pawns
+        // initialization of the two pawns
         let pawns: [Pawn; NUMBER_OF_PLAYERS] = [
             Pawn::new(board_size, Side::Bottom, number_of_walls_per_player),
             Pawn::new(board_size, Side::Top, number_of_walls_per_player),
@@ -110,7 +110,7 @@ impl Game {
     ) {
         let result_len = result.len();
         self.handle_step(result, move_direction, pawn_position);
-        //if pawn cant jump forward try left and right
+        // if pawn cant jump forward try left and right
         if result.len() == result_len {
             self.handle_step(result, move_direction.turn_left(), pawn_position);
             self.handle_step(result, move_direction.turn_right(), pawn_position);
@@ -139,8 +139,8 @@ impl Game {
                 return false;
             }
         }
-        //create copy of Game, add the Wall there
-        //and check if all Player can reach there goal
+        // create copy of Game, add the Wall there
+        // and check if all Player can reach there goal
         let new_wall = new_wall.clone();
         let mut temp_game = self.clone();
         temp_game.walls.push(new_wall);
@@ -165,7 +165,7 @@ impl Game {
         Ok(())
     }
 
-    //checks if all pawns can reach the according goal line
+    /// Checks if all pawns can reach the according goal line
     pub fn check_pawn_paths(&self) -> bool {
         for pawn_index in 0..NUMBER_OF_PLAYERS {
             if !self.check_pawn_path(pawn_index) {
@@ -175,7 +175,7 @@ impl Game {
         true
     }
 
-    //checks if pawn with given index can reach his goal line
+    /// Checks if pawn with given index can reach his goal line
     pub fn check_pawn_path(&self, pawn_index: usize) -> bool {
         let mut visited_positions = Vec::new();
         let goal_line = self.pawns[pawn_index].goal_line;
@@ -183,14 +183,14 @@ impl Game {
 
         let mut index: usize = 0;
         while let Some(current_position) = visited_positions.get(index) {
-            //this is only possible because only two players are supported
+            // this is only possible because only two players are supported
             if goal_line == current_position.y {
                 return true;
             }
 
             let valid_positions = self.valid_next_positions_without_other_pawn(*current_position);
 
-            //add valid_positions to visited_positions if they are not already added
+            // add valid_positions to visited_positions if they are not already added
             for position in valid_positions {
                 if !visited_positions.contains(&position) {
                     visited_positions.push(position);
@@ -215,7 +215,7 @@ impl Game {
             .collect()
     }
 
-    //same as handle_step but ignoring the other player
+    /// Same as handle_step but ignoring the other player
     fn handle_step_without_other(
         &self,
         move_direction: Direction,
@@ -233,7 +233,7 @@ impl Game {
     }
 
     fn does_wall_block_move(&self, move_direction: &Direction, pawn_pos: Vector) -> bool {
-        //generate the list of walls which would block the move
+        // generate the list of walls which would block the move
         let blocking_walls: Vec<Wall> = match move_direction {
             Direction::Up => [Vector::new(-1, -1), Vector::new(0, -1)]
                 .into_iter()
@@ -260,7 +260,7 @@ impl Game {
                 .map(|v| Wall::new(v, Orientation::Vertical))
                 .collect(),
         };
-        //check if one of these walls exists
+        // check if one of these walls exists
         for wall in blocking_walls.iter() {
             if self.walls.contains(&wall) {
                 return true;

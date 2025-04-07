@@ -20,7 +20,7 @@ impl Wall {
         }
     }
 
-    //returns the directional of the wall as unit vector
+    /// Return the directional of the wall as unit vector
     fn directional_vector(&self) -> Vector {
         match self.orientation {
             Orientation::Vertical => Vector::new(0, 1),
@@ -28,13 +28,13 @@ impl Wall {
         }
     }
 
-    //checks if a wall is in conflict with another wall
+    /// Check if a wall is in conflict with another wall
     pub fn is_in_conflict_with(&self, wall: &Wall) -> bool {
         let is_parallel = self.orientation == wall.orientation;
         let pos_s = self.position;
         let pos_w = wall.position;
         let dv_s = self.directional_vector();
-        //walls must not intersect or overlap
+        // Walls must not intersect or overlap
         if pos_s == pos_w {
             return true;
         };

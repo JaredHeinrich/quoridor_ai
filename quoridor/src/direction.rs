@@ -1,6 +1,6 @@
 use crate::vector::Vector;
 
-//Directions in which a Pawn can move
+/// Directions in which a Pawn can move
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Direction {
     Up,
@@ -10,7 +10,7 @@ pub enum Direction {
 }
 
 impl Direction {
-    //convert Direction into unit vector
+    /// Convert direction into unit vector
     pub fn to_vector(&self) -> Vector {
         match self {
             Self::Up => Vector::new(0, -1),
@@ -20,7 +20,7 @@ impl Direction {
         }
     }
 
-    //revert Direction
+    /// Revert direction
     pub fn revert(&self) -> Self {
         match self {
             Self::Up => Self::Down,
@@ -30,7 +30,7 @@ impl Direction {
         }
     }
 
-    //turn Direction to the left
+    /// Turn direction to the left
     pub fn turn_left(&self) -> Self {
         match self {
             Self::Up => Self::Left,
@@ -40,7 +40,7 @@ impl Direction {
         }
     }
 
-    //turn Direction to the right
+    /// Turn direction to the right
     pub fn turn_right(&self) -> Self {
         match self {
             Self::Up => Self::Right,

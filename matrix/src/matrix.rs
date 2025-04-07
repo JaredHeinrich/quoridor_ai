@@ -1,7 +1,9 @@
 use anyhow::Result;
+use rand::Rng;
 
 use crate::error::MatrixError;
 
+#[derive(Debug)]
 pub struct Matrix {
     pub rows: usize,
     pub columns: usize,
@@ -20,6 +22,29 @@ impl Matrix {
         })
     }
 
+    /// Creates Matrix with random values from -1.0 to 1.0
+    pub fn random(rows: usize, columns: usize) -> Self {
+        let mut values = vec![0.0; rows * columns];
+        values
+            .iter_mut()
+            .for_each(|value| *value = rand::rng().random_range(-1.0..1.0));
+        Self {
+            rows,
+            columns,
+            values,
+        }
+    }
+
+    /// Creates Matrix with all values 0.0
+    pub fn zero(rows: usize, columns: usize) -> Self {
+        Self {
+            rows,
+            columns,
+            values: vec![0.0; rows * columns],
+        }
+    }
+
+    /// Creates Matrix with all values 0.0
     pub fn multiply(&self, other: &Self) -> Result<Self> {
         if self.columns != other.rows {
             return Err(MatrixError::DotProductError.into());
@@ -43,6 +68,10 @@ impl Matrix {
         Ok(result)
     }
 
+    /// Adds two matrices per element
+    ///
+    /// Returns error if matrices have different dimensions.
+    /// Can only add n x m matrix to n x m matrix.
     pub fn add(&self, other: &Self) -> Result<Self> {
         if self.rows != other.rows || self.columns != other.columns {
             return Err(MatrixError::AdditionError.into());
@@ -56,15 +85,18 @@ impl Matrix {
         Self::new(self.rows, self.columns, values)
     }
 
+    /// Returns refrence to value of matrix at specific row and column
     pub fn value(&self, row_index: usize, column_index: usize) -> &f64 {
         &self.values[self.calculate_index(row_index, column_index)]
     }
 
+    /// Returns mut refrence to value of matrix at specific row and column
     pub fn value_mut(&mut self, row_index: usize, column_index: usize) -> &mut f64 {
         let index = self.calculate_index(row_index, column_index);
         &mut self.values[index]
     }
 
+    /// Iterate over rows of matrix
     pub fn iter_rows(&self) -> impl Iterator<Item = impl Iterator<Item = &f64>> {
         self.values
             .chunks(self.columns)
@@ -72,6 +104,7 @@ impl Matrix {
             .map(|chunk| chunk.iter())
     }
 
+    /// Iterate over columns of matrix
     pub fn iter_columns(&self) -> impl Iterator<Item = impl Iterator<Item = &f64>> {
         (0..self.columns).map(move |column_index| {
             (0..self.rows)
@@ -79,17 +112,20 @@ impl Matrix {
         })
     }
 
+    /// Iterate over specific row of matrix
     pub fn iter_row(&self, row_index: usize) -> impl Iterator<Item = &f64> {
         let row_start = self.calculate_index(row_index, 0);
         let row_end = self.calculate_index(row_index + 1, 0);
         (row_start..row_end).map(|index| &self.values[index])
     }
 
+    /// Iterate over specific column of matrix
     pub fn iter_column(&self, column_index: usize) -> impl Iterator<Item = &f64> {
         (0..self.rows)
             .map(move |row_index| &self.values[self.calculate_index(row_index, column_index)])
     }
 
+    /// Calculate index from row and column
     pub fn calculate_index(&self, row_index: usize, column_index: usize) -> usize {
         column_index + self.columns * row_index
     }
