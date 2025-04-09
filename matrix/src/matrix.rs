@@ -1,10 +1,10 @@
 use anyhow::Result;
 use rand::Rng;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::error::MatrixError;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Matrix {
     pub rows: usize,
     pub columns: usize,
@@ -129,6 +129,20 @@ impl Matrix {
     /// Calculate index from row and column
     pub fn calculate_index(&self, row_index: usize, column_index: usize) -> usize {
         column_index + self.columns * row_index
+    }
+}
+
+impl PartialEq for Matrix {
+    fn eq(&self, other: &Self) -> bool {
+        if self.rows != other.rows || self.columns != other.columns {
+            return false;
+        }
+        
+        const EPSILON: f64 = 1e-10;
+        self.values
+            .iter()
+            .zip(other.values.iter())
+            .all(|(a, b)| (a - b).abs() < EPSILON)
     }
 }
 

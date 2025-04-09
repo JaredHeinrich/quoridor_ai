@@ -10,4 +10,7 @@ pub enum LoggerError {
 
     #[error("Error writing newline to file '{0}': {1}")]
     WriteError(String, String),
+
+    #[error("Error deserializing data from JSON: {0}")]
+    DeserializationError(String),
 }

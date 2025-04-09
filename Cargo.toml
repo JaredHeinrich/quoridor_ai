@@ -5,4 +5,5 @@ members = [
     "matrix",
     "neural_network",
     "quoridor",
+    "neural_network_logger",
 ]
