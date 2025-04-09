@@ -3,6 +3,7 @@ use std::fs::{OpenOptions, File};
 use std::io::{Write, BufReader};
 use crate::models::LogEntry;
 use crate::error::LoggerError;
+use neural_network::neural_network::NeuralNetwork;
 
 // Helper function to handle logging logic
 fn write_to_log<T: serde::Serialize + ?Sized>(data: &T, output_path: &str) -> Result<(), LoggerError> {
@@ -23,12 +24,12 @@ fn write_to_log<T: serde::Serialize + ?Sized>(data: &T, output_path: &str) -> Re
 }
 
 // Logs a single neural network to a file in JSON format.
-pub fn log_single_network(log_entry: &LogEntry, output_path: &str) -> Result<(), LoggerError> {
+pub fn log_single_log_entry(log_entry: &LogEntry, output_path: &str) -> Result<(), LoggerError> {
     write_to_log(log_entry, output_path)
 }
 
 // Logs a generation of neural networks to a file in JSON format.
-pub fn log_generation(log_entries: &[LogEntry], output_path: &str) -> Result<(), LoggerError> {
+pub fn log_several_log_entries(log_entries: &[LogEntry], output_path: &str) -> Result<(), LoggerError> {
     write_to_log(log_entries, output_path)
 }
 
@@ -44,6 +45,39 @@ pub fn read_log_entries(output_path: &str) -> Result<Vec<LogEntry>, LoggerError>
     Ok(log_entries)
 }
 
+// logs a single neural network with placement and generation
+pub fn log_single_network(
+    generation: usize, 
+    placement: usize, 
+    neural_network: NeuralNetwork, 
+    output_path: &str
+) -> Result<(), LoggerError> {
+    let log_entry = LogEntry {
+        generation,
+        placement,
+        neural_network,
+    };
+    log_single_log_entry(&log_entry, output_path)
+}
+
+// Logs a generation of neural networks. It assmumes that the neural networks are in order with the first neural network being the best.
+pub fn log_generation(
+    generation: usize,
+    ordered_networks: Vec<NeuralNetwork>, 
+    output_path: &str
+) -> Result<(), LoggerError> {
+    let log_entries: Vec<LogEntry> = ordered_networks
+        .into_iter()
+        .enumerate()
+        .map(|(index, network)| LogEntry {
+            generation,
+            placement: index as usize,
+            neural_network: network,
+        })
+        .collect();
+    
+    log_several_log_entries(&log_entries, output_path)
+}
 
 #[cfg(test)]
 mod tests {
@@ -51,7 +85,6 @@ mod tests {
     use crate::models::LogEntry;
     use tempfile::NamedTempFile;
     use std::fs;
-    use neural_network::neural_network::NeuralNetwork;
     use std::io::Read;
 
     #[test]
@@ -65,7 +98,7 @@ mod tests {
         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
         let output_path = temp_file.path().to_str().unwrap();
 
-        log_single_network(&log_entry, output_path).expect("Failed to log single network");
+        log_single_log_entry(&log_entry, output_path).expect("Failed to log single network");
 
         // Read the file and verify the content
         let mut file = File::open(output_path).expect("Failed to open temp file");
@@ -88,7 +121,7 @@ mod tests {
         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
         let output_path = temp_file.path().to_str().unwrap();
 
-        log_generation(&log_entries, output_path).expect("Failed to log generation");
+        log_several_log_entries(&log_entries, output_path).expect("Failed to log generation");
 
         // Read the file and verify the content
         let mut file = File::open(output_path).expect("Failed to open temp file");
