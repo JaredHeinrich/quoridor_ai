@@ -2,13 +2,14 @@ use std::{f64, process::Output};
 
 use anyhow::Result;
 use matrix::matrix::Matrix;
+use serde::Serialize;
 
 use crate::{
     activation::{relu, sigmoid},
     error::NNError,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct NeuralNetwork {
     pub layer_sizes: Vec<usize>,
     pub weights: Vec<Matrix>,

@@ -7,3 +7,4 @@ edition = "2021"
 anyhow = "1.0.97"
 matrix = {path = "../matrix"}
 thiserror = "2.0.12"
+serde = { version = "1.0", features = ["derive"] }
