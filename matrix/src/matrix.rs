@@ -495,11 +495,25 @@ mod tests {
             values: vec![0.0; 9],
         };
         
-        // Mutate with significant rate
-        matrix.mutate_all(1.0);
+        matrix.mutate_all(0.01);
         
         // At least some values should have changed from 0.0
         assert!(matrix.values.iter().any(|&v| v != 0.0));
+    }
+    
+    #[test]
+    fn test_mutate_all_both_directions() {
+        let mut matrix = Matrix {
+            rows: 10,
+            columns: 10,
+            values: vec![0.0; 100],
+        };
+        
+        matrix.mutate_all(1.0);
+        
+        // Check that values can be both positive and negative
+        assert!(matrix.values.iter().any(|&v| v > 0.0));
+        assert!(matrix.values.iter().any(|&v| v < 0.0));
     }
 
     #[test]
