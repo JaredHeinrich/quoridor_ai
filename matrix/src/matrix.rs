@@ -137,7 +137,7 @@ impl PartialEq for Matrix {
         if self.rows != other.rows || self.columns != other.columns {
             return false;
         }
-        
+
         const EPSILON: f64 = 1e-10;
         self.values
             .iter()
