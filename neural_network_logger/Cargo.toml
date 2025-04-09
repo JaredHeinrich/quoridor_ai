@@ -1,0 +1,12 @@
+[package]
+name = "neural_network_logger"
+version = "0.1.0"
+edition = "2025"
+
+[dependencies]
+anyhow = "1.0.97"
+neural_network = {path = "../neural_network"}
+matrix = {path = "../matrix"}
+thiserror = "2.0.12"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
