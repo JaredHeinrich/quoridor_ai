@@ -1,5 +1,5 @@
-use serde::{Serialize, Deserialize};
 use neural_network::neural_network::NeuralNetwork;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct LogEntry {
