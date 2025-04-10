@@ -218,10 +218,11 @@ mod tests {
 
         // Verify that at least some weights have changed
         assert!(
-            nn.weights.iter().zip(original_weights).any(
-                |(weight_matrix, original_weight_matrix)| 
-                    *weight_matrix != original_weight_matrix
-            ),
+            nn.weights
+                .iter()
+                .zip(original_weights)
+                .any(|(weight_matrix, original_weight_matrix)| *weight_matrix
+                    != original_weight_matrix),
             "No weights changed after mutation"
         );
 
@@ -230,8 +231,7 @@ mod tests {
             nn.weights
                 .iter()
                 .zip(original_biases)
-                .any(|(bias_matrix, original_bias_matrix)| 
-                    *bias_matrix != original_bias_matrix),
+                .any(|(bias_matrix, original_bias_matrix)| *bias_matrix != original_bias_matrix),
             "No biases changed after mutation"
         );
     }
