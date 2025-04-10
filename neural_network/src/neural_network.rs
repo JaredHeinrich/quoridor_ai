@@ -1,5 +1,3 @@
-use std::{f64, process::Output};
-
 use anyhow::Result;
 use matrix::matrix::Matrix;
 
@@ -196,18 +194,14 @@ mod tests {
         let mut nn = NeuralNetwork::new(&layer_sizes).unwrap();
 
         // Clone original weights and biases
-        let original_weights: Vec<Vec<f64>> = nn.weights.iter().map(|m| m.values.clone()).collect();
-        let original_biases: Vec<Vec<f64>> = nn.biases.iter().map(|m| m.values.clone()).collect();
+        let original_weights: Vec<Matrix> = nn.weights.clone();
+        let original_biases: Vec<Matrix> = nn.biases.clone();
 
         nn.mutate(0.0);
 
         // Verify that weights and biases remain unchanged
-        for (i, weight_matrix) in nn.weights.iter().enumerate() {
-            assert_eq!(weight_matrix.values, original_weights[i]);
-        }
-        for (i, bias_matrix) in nn.biases.iter().enumerate() {
-            assert_eq!(bias_matrix.values, original_biases[i]);
-        }
+        assert_eq!(original_weights, nn.weights);
+        assert_eq!(original_biases, nn.biases);
     }
 
     #[test]
@@ -216,31 +210,30 @@ mod tests {
         let mut nn = NeuralNetwork::new(&layer_sizes).unwrap();
 
         // Clone the original weights and biases
-        let original_weights: Vec<Vec<f64>> = nn.weights.iter().map(|m| m.values.clone()).collect();
-        let original_biases: Vec<Vec<f64>> = nn.biases.iter().map(|m| m.values.clone()).collect();
+        let original_weights = nn.weights.clone();
+        let original_biases = nn.biases.clone();
 
         // Apply mutation with significant rate
         nn.mutate(1.0);
 
         // Verify that at least some weights have changed
-        let mut any_weight_changed = false;
-        for (i, weight_matrix) in nn.weights.iter().enumerate() {
-            if weight_matrix.values != original_weights[i] {
-                any_weight_changed = true;
-                break;
-            }
-        }
-        assert!(any_weight_changed, "No weights changed after mutation");
+        assert!(
+            nn.weights.iter().zip(original_weights).any(
+                |(weight_matrix, original_weight_matrix)| weight_matrix.values
+                    != original_weight_matrix.values
+            ),
+            "No weights changed after mutation"
+        );
 
         // Verify that at least some biases have changed
-        let mut any_bias_changed = false;
-        for (i, bias_matrix) in nn.biases.iter().enumerate() {
-            if bias_matrix.values != original_biases[i] {
-                any_bias_changed = true;
-                break;
-            }
-        }
-        assert!(any_bias_changed, "No biases changed after mutation");
+        assert!(
+            nn.weights
+                .iter()
+                .zip(original_biases)
+                .any(|(bias_matrix, original_bias_matrix)| bias_matrix.values
+                    != original_bias_matrix.values),
+            "No biases changed after mutation"
+        );
     }
 
     #[test]
