@@ -194,13 +194,13 @@ mod tests {
     fn test_mutate_zero_rate() {
         let layer_sizes = vec![2, 3, 1];
         let mut nn = NeuralNetwork::new(&layer_sizes).unwrap();
-        
+
         // Clone original weights and biases
         let original_weights: Vec<Vec<f64>> = nn.weights.iter().map(|m| m.values.clone()).collect();
         let original_biases: Vec<Vec<f64>> = nn.biases.iter().map(|m| m.values.clone()).collect();
-        
+
         nn.mutate(0.0);
-        
+
         // Verify that weights and biases remain unchanged
         for (i, weight_matrix) in nn.weights.iter().enumerate() {
             assert_eq!(weight_matrix.values, original_weights[i]);
@@ -214,14 +214,14 @@ mod tests {
     fn test_mutate_changes_values() {
         let layer_sizes = vec![2, 3, 1];
         let mut nn = NeuralNetwork::new(&layer_sizes).unwrap();
-        
+
         // Clone the original weights and biases
         let original_weights: Vec<Vec<f64>> = nn.weights.iter().map(|m| m.values.clone()).collect();
         let original_biases: Vec<Vec<f64>> = nn.biases.iter().map(|m| m.values.clone()).collect();
 
         // Apply mutation with significant rate
         nn.mutate(1.0);
-        
+
         // Verify that at least some weights have changed
         let mut any_weight_changed = false;
         for (i, weight_matrix) in nn.weights.iter().enumerate() {
@@ -248,7 +248,7 @@ mod tests {
         // Create a neural network
         let layer_sizes = vec![2, 3, 1];
         let mut nn = NeuralNetwork::new(&layer_sizes).unwrap();
-        
+
         // Initialize all weights and biases to zero
         for weight_matrix in &mut nn.weights {
             for value in &mut weight_matrix.values {
@@ -260,19 +260,27 @@ mod tests {
                 *value = 0.0;
             }
         }
-        
+
         let mutation_rate = 0.5;
         nn.mutate(mutation_rate);
-        
+
         // Verify that all mutations are within bounds
         for weight_matrix in &nn.weights {
             for &value in &weight_matrix.values {
-                assert!(value.abs() <= mutation_rate, "Mutation exceeded rate bounds: {}", value);
+                assert!(
+                    value.abs() <= mutation_rate,
+                    "Mutation exceeded rate bounds: {}",
+                    value
+                );
             }
         }
         for bias_matrix in &nn.biases {
             for &value in &bias_matrix.values {
-                assert!(value.abs() <= mutation_rate, "Mutation exceeded rate bounds: {}", value);
+                assert!(
+                    value.abs() <= mutation_rate,
+                    "Mutation exceeded rate bounds: {}",
+                    value
+                );
             }
         }
     }
