@@ -13,7 +13,7 @@ pub struct Settings {
     pub generation_size: usize,
     
     /// Size of the input layer (number of input features)
-    /// Note: This should always be 127 for Quoridor (81 board positions + 64 walls + 2 wall counts)
+    /// Note: This should always be 147 for Quoridor (81 board positions + 64 walls + 2 wall counts)
     pub input_layer_size: usize,
 
     /// Size of the output layer (number of output features)
@@ -22,7 +22,7 @@ pub struct Settings {
 
     // Neural network architecture
     /// Layer structure of neural networks [input_layer, hidden_layer(s), output_layer]
-    /// Note: First layer must be input layer size (127) and last layer must be output layer size (132)
+    /// Note: First layer must be input layer size (147) and last layer must be output layer size (132)
     pub neural_network_layer_structure: Vec<usize>,
     
     // Selection parameters
@@ -61,13 +61,13 @@ impl Default for Settings {
             // Default population of 100 neural networks per generation
             generation_size: 100,
             
-            // Input layer size (127) and output layer size (132)
-            input_layer_size: 127,
+            // Input layer size (147) and output layer size (132)
+            input_layer_size: 147,
             output_layer_size: 132,
 
             // Default architecture with three hidden layers of 128 neurons each
-            // Input layer (127) -> Hidden layer (128) -> Hidden layer (128) -> Hidden layer (128) -> Output layer (132)
-            neural_network_layer_structure: vec![127, 128, 128, 128, 132],
+            // Input layer (147) -> Hidden layer (128) -> Hidden layer (128) -> Hidden layer (128) -> Output layer (132)
+            neural_network_layer_structure: vec![147, 128, 128, 128, 132],
             
             // 50% of population survives to next generation
             survival_rate: 0.5,
@@ -143,7 +143,7 @@ impl Settings {
     }
 
     /// Sets the neural network layer structure
-    /// Note: First layer must be 127 and last layer must be 132
+    /// Note: First layer must be 147 and last layer must be 132
     pub fn with_network_architecture(mut self, layers: Vec<usize>) -> Self {
         self.neural_network_layer_structure = layers;
         self
@@ -221,7 +221,7 @@ impl Settings {
 
     // Helper methods to access derived information
 
-    /// Returns the input layer size (always 127 for Quoridor)
+    /// Returns the input layer size (always 147 for Quoridor)
     pub fn input_layer_size(&self) -> usize {
         self.neural_network_layer_structure[0]
     }
@@ -261,7 +261,7 @@ mod tests {
         assert!(settings.validate().is_err());
         
         // Invalid neural network structure (wrong output layer)
-        let settings = Settings::default().with_network_architecture(vec![127, 50, 100]);
+        let settings = Settings::default().with_network_architecture(vec![147, 50, 100]);
         assert!(settings.validate().is_err());
         
         // Invalid survival rate
@@ -273,7 +273,7 @@ mod tests {
     fn test_builder_pattern() {
         let settings = Settings::new()
             .with_generation_size(200)
-            .with_network_architecture(vec![127, 300, 200, 132])
+            .with_network_architecture(vec![147, 300, 200, 132])
             .with_survival_rate(0.3)
             .with_mutation_rate(0.05)
             .with_reward_coefficients(500.0, -5.0, 3.0, -0.5)
@@ -282,7 +282,7 @@ mod tests {
             .with_generation_count(500);
         
         assert_eq!(settings.generation_size, 200);
-        assert_eq!(settings.neural_network_layer_structure, vec![127, 300, 200, 132]);
+        assert_eq!(settings.neural_network_layer_structure, vec![147, 300, 200, 132]);
         assert_eq!(settings.survival_rate, 0.3);
         assert_eq!(settings.mutation_rate, 0.05);
         assert_eq!(settings.win_reward, 500.0);
@@ -314,10 +314,10 @@ mod tests {
     fn test_helper_methods() {
         let settings = Settings::default()
             .with_generation_size(200)
-            .with_network_architecture(vec![127, 64, 32, 132])
+            .with_network_architecture(vec![147, 64, 32, 132])
             .with_survival_rate(0.25);
         
-        assert_eq!(settings.input_layer_size(), 127);
+        assert_eq!(settings.input_layer_size(), 147);
         assert_eq!(settings.output_layer_size(), 132);
         assert_eq!(settings.hidden_layer_count(), 2);
         assert_eq!(settings.survivors_count(), 50); // 25% of 200
