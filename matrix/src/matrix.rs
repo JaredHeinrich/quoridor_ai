@@ -3,7 +3,7 @@ use rand::Rng;
 
 use crate::error::MatrixError;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Matrix {
     pub rows: usize,
     pub columns: usize,
@@ -128,6 +128,13 @@ impl Matrix {
     /// Calculate index from row and column
     pub fn calculate_index(&self, row_index: usize, column_index: usize) -> usize {
         column_index + self.columns * row_index
+    }
+
+    /// Mutate all values of the matrix by adding random value from -1.0 to 1.0 times mutation_rate
+    pub fn mutate_all(&mut self, mutation_rate: f64) {
+        for value in &mut self.values {
+            *value += rand::rng().random_range(-1.0..1.0) * mutation_rate;
+        }
     }
 }
 
@@ -463,5 +470,66 @@ mod tests {
 
         let actual_result = matrix_one.add(&matrix_two);
         assert!(actual_result.is_err())
+    }
+
+    #[test]
+    fn test_mutate_all_zero_rate() {
+        let mut matrix = Matrix {
+            rows: 2,
+            columns: 2,
+            values: vec![1.0, 2.0, 3.0, 4.0],
+        };
+
+        let original_values = matrix.values.clone();
+
+        matrix.mutate_all(0.0);
+
+        assert_eq!(matrix.values, original_values);
+    }
+
+    #[test]
+    fn test_mutate_all_changes_values() {
+        let mut matrix = Matrix {
+            rows: 3,
+            columns: 3,
+            values: vec![0.0; 9],
+        };
+
+        matrix.mutate_all(0.01);
+
+        // At least some values should have changed from 0.0
+        assert!(matrix.values.iter().any(|&v| v != 0.0));
+    }
+
+    #[test]
+    fn test_mutate_all_both_directions() {
+        let mut matrix = Matrix {
+            rows: 10,
+            columns: 10,
+            values: vec![0.0; 100],
+        };
+
+        matrix.mutate_all(1.0);
+
+        // Check that values can be both positive and negative
+        assert!(matrix.values.iter().any(|&v| v > 0.0));
+        assert!(matrix.values.iter().any(|&v| v < 0.0));
+    }
+
+    #[test]
+    fn test_mutate_all_respects_mutation_rate() {
+        let mut matrix = Matrix {
+            rows: 3,
+            columns: 3,
+            values: vec![0.0; 9],
+        };
+
+        let mutatation_rate = 0.5;
+        matrix.mutate_all(mutatation_rate);
+
+        // All values should be within the bounds of ±mutation_rate
+        for value in &matrix.values {
+            assert!(value.abs() <= mutatation_rate);
+        }
     }
 }
