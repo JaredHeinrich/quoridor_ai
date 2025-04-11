@@ -2,9 +2,15 @@ use anyhow::Result;
 use matrix::matrix::Matrix;
 
 use crate::{
-    activation::{relu, sigmoid},
+    activation::{relu, sigmoid, softmax_maxtrick},
     error::NNError,
 };
+
+#[derive(Debug, Clone, Copy)]
+pub enum OutputActivation {
+    Sigmoid,
+    Softmax,
+}
 
 #[derive(Debug)]
 pub struct NeuralNetwork {
@@ -69,7 +75,7 @@ impl NeuralNetwork {
     ///
     /// For the output layer sigmoid is used as activation function instead:
     /// Sigmoid(weights * input_vector + biases)
-    pub fn feed_forward(&self, input_vector: Matrix) -> Result<Matrix> {
+    pub fn feed_forward(&self, input_vector: Matrix, output_activation: OutputActivation) -> Result<Matrix> {
         if input_vector.columns != 1 {
             return Err(
                 NNError::InvalidInputVectorShape(input_vector.rows, input_vector.columns).into(),
@@ -83,18 +89,36 @@ impl NeuralNetwork {
 
         let mut result = input_vector;
         let mut layer_iter = self.weights.iter().zip(self.biases.iter());
-        let (output_layer_weigth_matrix, output_layer_bias_matrix) =
+        let (output_layer_weight_matrix, output_layer_bias_matrix) =
             layer_iter.next_back().unwrap();
 
         while let Some((weight_matrix, bias_matrix)) = layer_iter.next() {
             process_layer(&mut result, weight_matrix, bias_matrix, relu);
         }
-        process_layer(
-            &mut result,
-            output_layer_weigth_matrix,
-            output_layer_bias_matrix,
-            sigmoid,
-        );
+        
+        // Choose adequate activation function for the output layer
+        match output_activation {
+            OutputActivation::Sigmoid => {
+                process_layer(
+                    &mut result,
+                    output_layer_weight_matrix,
+                    output_layer_bias_matrix,
+                    sigmoid,
+                );
+            }
+            OutputActivation::Softmax => {
+                // Process the layer first (without activation)
+                result = output_layer_weight_matrix
+                    .multiply(&result)
+                    .unwrap()
+                    .add(output_layer_bias_matrix)
+                    .unwrap();
+                
+                // Apply softmax to the entire vector
+                result = softmax_maxtrick( result);
+            }
+        }
+        
         Ok(result)
     }
 
