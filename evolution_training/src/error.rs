@@ -29,3 +29,16 @@ pub enum EvolutionError {
     #[error("Network initialization error: {0}")]
     NetworkError(#[from] neural_network::error::NNError),
 }
+
+#[derive(Error, Debug)]
+pub enum GameAdapterError {
+    #[error("Wall position out of bounds: ({0}, {1})")]
+    WallPositionOutOfBounds(usize, usize),
+    
+    #[error("Invalid game state encoding")]
+    InvalidEncoding,
+    
+    #[error("Invalid move decoding")]
+    InvalidMoveDecoding,
+}
+

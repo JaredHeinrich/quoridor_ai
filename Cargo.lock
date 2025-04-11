@@ -27,6 +27,7 @@ dependencies = [
  "anyhow",
  "matrix",
  "neural_network",
+ "quoridor",
  "serde",
  "thiserror",
 ]
