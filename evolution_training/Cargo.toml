@@ -7,6 +7,7 @@ edition = "2021"
 anyhow = "1.0.97"
 neural_network = {path = "../neural_network"}
 matrix = {path = "../matrix"}
+quoridor = {path = "../quoridor"}
 thiserror = "2.0.12"
 serde = { version = "1.0", features = ["derive"] }
 
