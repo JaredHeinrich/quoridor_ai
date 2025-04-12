@@ -38,7 +38,22 @@ pub enum GameAdapterError {
     #[error("Invalid game state encoding")]
     InvalidEncoding,
     
-    #[error("Invalid move decoding")]
-    InvalidMoveDecoding,
-}
+    #[error("Invalid move decoding, output matrix: Rows: {0}, Columns: {1}")]
+    InvalidMoveDecoding(usize, usize),
+
+    #[error("No valid moves found, should never happen, as the game is designed to not enter a state with only invalid moves")]
+    NoValidMoves,
+
+    #[error("To use non-deterministic function, all values need to be probabilities >= 0. Value: {0}")]
+    InvalidProbabilitySoftmax(f64),
+
+    #[error("To use non-deterministic function, all values need to be probabilities >= 0 that add up to 1. Probabilities add up to {0}")]
+    InvalidProbabilitiesSumSoftmax(f64),
+
+    #[error("Index out of bounds for possible Moves")]
+    IndexMovesOutOfBounds,
+
+    #[error("Invalid move")]
+    InvalidMove
+}   
 
