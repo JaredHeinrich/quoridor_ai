@@ -1,16 +1,13 @@
 use crate::error::LoggerError;
 use crate::models::LogEntry;
+use anyhow::Result;
 use neural_network::neural_network::NeuralNetwork;
 use serde_json::{from_reader, to_writer};
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, Write};
-use anyhow::Result;
 
 // Helper function to handle logging logic
-fn write_to_log<T: serde::Serialize + ?Sized>(
-    data: &T,
-    output_path: &str,
-) -> Result<()> {
+fn write_to_log<T: serde::Serialize + ?Sized>(data: &T, output_path: &str) -> Result<()> {
     let mut file = OpenOptions::new()
         .create(true)
         .append(true)
@@ -31,10 +28,7 @@ pub fn log_single_log_entry(log_entry: &LogEntry, output_path: &str) -> Result<(
 }
 
 // Logs a generation of neural networks to a file in JSON format.
-pub fn log_several_log_entries(
-    log_entries: &[LogEntry],
-    output_path: &str,
-) -> Result<()> {
+pub fn log_several_log_entries(log_entries: &[LogEntry], output_path: &str) -> Result<()> {
     write_to_log(log_entries, output_path)
 }
 
