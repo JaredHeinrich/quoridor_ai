@@ -1,12 +1,13 @@
 use anyhow::Result;
 use matrix::matrix::Matrix;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     activation::{relu, sigmoid},
     error::NNError,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct NeuralNetwork {
     pub layer_sizes: Vec<usize>,
     pub weights: Vec<Matrix>,
