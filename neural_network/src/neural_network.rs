@@ -1,5 +1,3 @@
-use std::f64;
-
 use anyhow::Result;
 use matrix::matrix::Matrix;
 use serde::{Deserialize, Serialize};
@@ -100,6 +98,16 @@ impl NeuralNetwork {
         );
         Ok(result)
     }
+
+    /// Mutate all the weights and biases of the neural network.
+    pub fn mutate(&mut self, mutation_rate: f64) {
+        for weight_matrix in &mut self.weights {
+            weight_matrix.mutate_all(mutation_rate);
+        }
+        for bias_matrix in &mut self.biases {
+            bias_matrix.mutate_all(mutation_rate);
+        }
+    }
 }
 
 fn process_layer(
@@ -179,5 +187,95 @@ mod tests {
             .biases
             .iter()
             .all(|bias_matrix| bias_matrix.values.iter().all(|value| *value == 0.0)));
+    }
+
+    #[test]
+    fn test_mutate_zero_rate() {
+        let layer_sizes = vec![2, 3, 1];
+        let mut nn = NeuralNetwork::new(&layer_sizes).unwrap();
+
+        // Clone original weights and biases
+        let original_weights: Vec<Matrix> = nn.weights.clone();
+        let original_biases: Vec<Matrix> = nn.biases.clone();
+
+        nn.mutate(0.0);
+
+        // Verify that weights and biases remain unchanged
+        assert_eq!(original_weights, nn.weights);
+        assert_eq!(original_biases, nn.biases);
+    }
+
+    #[test]
+    fn test_mutate_changes_values() {
+        let layer_sizes = vec![2, 3, 1];
+        let mut nn = NeuralNetwork::new(&layer_sizes).unwrap();
+
+        // Clone the original weights and biases
+        let original_weights = nn.weights.clone();
+        let original_biases = nn.biases.clone();
+
+        // Apply mutation with significant rate
+        nn.mutate(1.0);
+
+        // Verify that at least some weights have changed
+        assert!(
+            nn.weights
+                .iter()
+                .zip(original_weights)
+                .any(|(weight_matrix, original_weight_matrix)| *weight_matrix
+                    != original_weight_matrix),
+            "No weights changed after mutation"
+        );
+
+        // Verify that at least some biases have changed
+        assert!(
+            nn.weights
+                .iter()
+                .zip(original_biases)
+                .any(|(bias_matrix, original_bias_matrix)| *bias_matrix != original_bias_matrix),
+            "No biases changed after mutation"
+        );
+    }
+
+    #[test]
+    fn test_mutate_respects_rate() {
+        // Create a neural network
+        let layer_sizes = vec![2, 3, 1];
+        let mut nn = NeuralNetwork::new(&layer_sizes).unwrap();
+
+        // Initialize all weights and biases to zero
+        for weight_matrix in &mut nn.weights {
+            for value in &mut weight_matrix.values {
+                *value = 0.0;
+            }
+        }
+        for bias_matrix in &mut nn.biases {
+            for value in &mut bias_matrix.values {
+                *value = 0.0;
+            }
+        }
+
+        let mutation_rate = 0.5;
+        nn.mutate(mutation_rate);
+
+        // Verify that all mutations are within bounds
+        for weight_matrix in &nn.weights {
+            for &value in &weight_matrix.values {
+                assert!(
+                    value.abs() <= mutation_rate,
+                    "Mutation exceeded rate bounds: {}",
+                    value
+                );
+            }
+        }
+        for bias_matrix in &nn.biases {
+            for &value in &bias_matrix.values {
+                assert!(
+                    value.abs() <= mutation_rate,
+                    "Mutation exceeded rate bounds: {}",
+                    value
+                );
+            }
+        }
     }
 }
