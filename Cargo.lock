@@ -28,6 +28,7 @@ dependencies = [
  "matrix",
  "neural_network",
  "quoridor",
+ "rand",
  "serde",
  "thiserror",
 ]

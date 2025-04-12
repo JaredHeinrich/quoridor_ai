@@ -8,6 +8,7 @@ use crate::vector::{Vector, VectorUtility};
 use crate::wall::{Orientation, Wall};
 use crate::NUMBER_OF_PLAYERS;
 
+#[derive(Clone)]
 pub enum Move {
     PawnMove(Vector),
     WallMove(Wall),
