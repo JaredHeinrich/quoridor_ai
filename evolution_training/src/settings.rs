@@ -43,7 +43,7 @@ pub struct Settings {
     /// Reward based on opponent's distance from goal
     pub other_pawn_distance_reward: f64,
     /// Penalty for each turn taken (negative value to encourage efficiency)
-    pub turn_punishment: f64,
+    pub per_saved_turn_reward: f64,
     
     // Simulation constraints
     /// Maximum number of moves allowed per player before game termination
@@ -81,7 +81,7 @@ impl Default for Settings {
             win_reward: 1000.0,
             own_distance_punishment: -10.0,
             other_pawn_distance_reward: 5.0,
-            turn_punishment: -1.0,
+            per_saved_turn_reward: 1.0,
             
             // Game constraints
             max_moves_per_player: 50,
@@ -167,12 +167,12 @@ impl Settings {
         win: f64,
         own_distance: f64,
         other_distance: f64,
-        turn: f64,
+        turn_reward: f64,
     ) -> Self {
         self.win_reward = win;
         self.own_distance_punishment = own_distance;
         self.other_pawn_distance_reward = other_distance;
-        self.turn_punishment = turn;
+        self.per_saved_turn_reward = turn_reward;
         self
     }
 
@@ -192,31 +192,6 @@ impl Settings {
     pub fn with_generation_count(mut self, generations: usize) -> Self {
         self.number_of_generations = generations;
         self
-    }
-
-    // Reward function factories
-
-    /// Returns a reward function based on current settings
-    /// 
-    /// This creates a closure that calculates a reward given:
-    /// - won: whether the agent won the game
-    /// - own_distance: agent's distance from goal
-    /// - other_distance: opponent's distance from goal
-    /// - turns: number of turns taken
-    pub fn create_reward_function(&self) -> impl Fn(bool, f64, f64, usize) -> f64 + '_ {
-        |won, own_distance, other_distance, turns| {
-            let mut reward = 0.0;
-            
-            if won {
-                reward += self.win_reward;
-            }
-            
-            reward += own_distance * self.own_distance_punishment;
-            reward += other_distance * self.other_pawn_distance_reward;
-            reward += turns as f64 * self.turn_punishment;
-            
-            reward
-        }
     }
 
     // Helper methods to access derived information
@@ -276,7 +251,7 @@ mod tests {
             .with_network_architecture(vec![147, 300, 200, 132])
             .with_survival_rate(0.3)
             .with_mutation_rate(0.05)
-            .with_reward_coefficients(500.0, -5.0, 3.0, -0.5)
+            .with_reward_coefficients(500.0, -5.0, 3.0, 0.5)
             .with_max_moves_per_player(150)
             .with_deterministic_play(true)
             .with_generation_count(500);
@@ -288,26 +263,10 @@ mod tests {
         assert_eq!(settings.win_reward, 500.0);
         assert_eq!(settings.own_distance_punishment, -5.0);
         assert_eq!(settings.other_pawn_distance_reward, 3.0);
-        assert_eq!(settings.turn_punishment, -0.5);
+        assert_eq!(settings.per_saved_turn_reward, 0.5);
         assert_eq!(settings.max_moves_per_player, 150);
         assert_eq!(settings.play_deterministically, true);
         assert_eq!(settings.number_of_generations, 500);
-    }
-    
-    #[test]
-    fn test_reward_function() {
-        let settings = Settings::default()
-            .with_reward_coefficients(100.0, -5.0, 2.0, -1.0);
-        
-        let reward_fn = settings.create_reward_function();
-        
-        // Test winning scenario
-        let win_reward = reward_fn(true, 2.0, 6.0, 10);
-        assert_eq!(win_reward, 100.0 + (-5.0 * 2.0) + (2.0 * 6.0) + (-1.0 * 10.0));
-        
-        // Test losing scenario
-        let lose_reward = reward_fn(false, 3.0, 2.0, 15);
-        assert_eq!(lose_reward, 0.0 + (-5.0 * 3.0) + (2.0 * 2.0) + (-1.0 * 15.0));
     }
     
     #[test]
