@@ -1,17 +1,12 @@
 use quoridor::game_state::Game;
 use serde::{Deserialize, Serialize};
 use crate::settings::Settings;
+use crate::game_adapter::board_encoder::distance_to_goal;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum RewardFunction {
     Simple,
     Symmetric,
-}
-
-/// Calculates the manhattan distance from the given player to their goal line
-pub fn distance_to_goal(game: &Game, player_index: usize) -> f64 {
-    let pawn = &game.pawns[player_index];
-    (pawn.position.y - pawn.goal_line).abs() as f64
 }
 
 /// Calculates the reward for a player based on game state, number of moves, and settings
@@ -22,7 +17,7 @@ pub fn reward_simple_per_game(game: &Game, player_index: usize, number_of_moves_
     let opponent_distance = distance_to_goal(game, opponent_index);
     
     // Check if this player won the game = reached the goal line
-    let won = own_distance == 0.0;
+    let won = own_distance == 0;
 
     // Initialize reward accumulator
     let mut reward = 0.0;
@@ -36,8 +31,8 @@ pub fn reward_simple_per_game(game: &Game, player_index: usize, number_of_moves_
     // Apply distance-based rewards/penalties
     // - Penalize for own distance from goal (negative coefficient means farther = worse)
     // - Reward for opponent's distance from goal (positive coefficient means farther = better)
-    reward += settings.own_distance_punishment * own_distance;
-    reward += settings.other_pawn_distance_reward * opponent_distance;
+    reward += settings.own_distance_punishment * own_distance as f64;
+    reward += settings.other_pawn_distance_reward * opponent_distance as f64;
     
     reward
 }
@@ -50,8 +45,8 @@ pub fn reward_symmetric_per_game(game: &Game, player_index: usize, number_of_mov
     let opponent_distance = distance_to_goal(game, opponent_index);
     
     // Check if this player won or the opponent won
-    let won = own_distance == 0.0;
-    let lost = opponent_distance == 0.0;
+    let won = own_distance == 0;
+    let lost = opponent_distance == 0;
 
     // Initialize reward accumulator
     let mut reward = 0.0;
@@ -66,7 +61,7 @@ pub fn reward_symmetric_per_game(game: &Game, player_index: usize, number_of_mov
     }
     
     // Distance-based relative advantage (progress difference)
-    let relative_disadvantage = own_distance - opponent_distance;
+    let relative_disadvantage: f64 = own_distance as f64- opponent_distance as f64;
     reward += settings.own_distance_punishment * relative_disadvantage;
     
     reward
@@ -95,21 +90,6 @@ mod tests {
         Settings::default()
             .with_reward_coefficients(function, 100.0, -5.0, 2.0, 0.5)
             .with_max_moves_per_player(50)
-    }
-
-    #[test]
-    fn test_distance_to_goal() {
-        let mut game = create_test_game();
-        
-        // Bottom player starts at y=8, goal is y=0, so distance is 8
-        assert_eq!(distance_to_goal(&game, 0), 8.0);
-        
-        // Move bottom player closer to goal
-        game.pawns[0].position = Vector::new(4, 3);
-        assert_eq!(distance_to_goal(&game, 0), 3.0);
-        
-        // Top player starts at y=0, goal is y=8, so distance is 8
-        assert_eq!(distance_to_goal(&game, 1), 8.0);
     }
 
     #[test]
