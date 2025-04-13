@@ -8,6 +8,8 @@ use crate::evolution::agent::Agent;
 #[derive(Debug, Clone)]
 pub struct Generation {
         pub agents: Vec<Agent>,
+        pub generation_index: usize,
+        pub mutation_rate: f64,
 }
 
 impl Generation {
@@ -22,7 +24,7 @@ impl Generation {
             agents.push(Agent { neural_network, fitness: 0.0 });
         }
         
-        Ok(Generation { agents })
+        Ok(Generation { agents, generation_index: 0, mutation_rate: settings.mutation_rate })
     }
     
     /// Returns the number of agents in this generation
