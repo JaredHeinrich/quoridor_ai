@@ -57,11 +57,11 @@ mod tests {
     #[test]
     fn test_increase_fitness() {
         let mut agent = create_test_agent();
-        
+
         // Increase by 10
         agent.increase_fitness(10.0);
         assert_eq!(agent.get_fitness(), 10.0);
-        
+
         // Increase by another 5
         agent.increase_fitness(5.0);
         assert_eq!(agent.get_fitness(), 15.0);
@@ -70,10 +70,10 @@ mod tests {
     #[test]
     fn test_set_fitness() {
         let mut agent = create_test_agent();
-        
+
         agent.set_fitness(20.0);
         assert_eq!(agent.get_fitness(), 20.0);
-        
+
         // Set to a different value
         agent.set_fitness(15.0);
         assert_eq!(agent.get_fitness(), 15.0);
@@ -82,7 +82,7 @@ mod tests {
     #[test]
     fn test_reset_fitness() {
         let mut agent = create_test_agent();
-        
+
         agent.set_fitness(30.0);
         agent.reset_fitness();
         assert_eq!(agent.get_fitness(), 0.0);

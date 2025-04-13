@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
 use crate::{error::EvolutionError, game_adapter::reward::RewardFunction};
+use serde::{Deserialize, Serialize};
 
 /// Configuration settings for the evolutionary training process.
-/// 
+///
 /// This struct contains all configurable parameters that control the behavior
 /// of the evolutionary algorithm, including neural network structure, selection
 /// parameters, reward function coefficients, and simulation constraints.
@@ -11,7 +11,7 @@ pub struct Settings {
     // Population parameters
     /// Number of neural networks in each generation
     pub generation_size: usize,
-    
+
     /// Size of the input layer (number of input features)
     /// Note: This should always be 147 for Quoridor (81 board positions + 64 walls + 2 wall counts)
     pub input_layer_size: usize,
@@ -24,7 +24,7 @@ pub struct Settings {
     /// Layer structure of neural networks [input_layer, hidden_layer(s), output_layer]
     /// Note: First layer must be input layer size (147) and last layer must be output layer size (132)
     pub neural_network_layer_structure: Vec<usize>,
-    
+
     // Selection parameters
     /// Fraction of population that survives to next generation (range: 0.0-1.0)
     pub survival_rate: f64,
@@ -35,7 +35,7 @@ pub struct Settings {
 
     /// Percentual decrease of the mutation rate for each generation
     pub mutation_rate_decrease: f64,
-    
+
     // Reward function coefficients
     pub reward_function: RewardFunction,
     /// Reward for winning the game
@@ -46,7 +46,7 @@ pub struct Settings {
     pub other_pawn_distance_reward: f64,
     /// Penalty for each turn taken (negative value to encourage efficiency)
     pub per_saved_turn_reward: f64,
-    
+
     // Simulation constraints
     /// Maximum number of moves allowed per player before game termination
     pub max_moves_per_player: usize,
@@ -54,7 +54,6 @@ pub struct Settings {
     pub play_deterministically: bool,
     /// Total number of generations to run
     pub number_of_generations: usize,
-
 
     /// Path to the log file for saving training data
     pub log_file: String,
@@ -66,7 +65,7 @@ impl Default for Settings {
         Self {
             // Default population of 100 neural networks per generation
             generation_size: 100,
-            
+
             // Input layer size (147) and output layer size (132)
             input_layer_size: 147,
             output_layer_size: 132,
@@ -74,7 +73,7 @@ impl Default for Settings {
             // Default architecture with three hidden layers of 128 neurons each
             // Input layer (147) -> Hidden layer (128) -> Hidden layer (128) -> Hidden layer (128) -> Output layer (132)
             neural_network_layer_structure: vec![147, 128, 128, 128, 132],
-            
+
             // 50% of population survives to next generation
             survival_rate: 0.4,
             reactivation_rate: 0.2,
@@ -84,14 +83,14 @@ impl Default for Settings {
 
             // Decrease mutation rate by 0.5% each generation
             mutation_rate_decrease: 0.005,
-            
-            // Reward 
+
+            // Reward
             reward_function: RewardFunction::Simple,
             win_reward: 1000.0,
             own_distance_punishment: -10.0,
             other_pawn_distance_reward: 5.0,
             per_saved_turn_reward: 1.0,
-            
+
             // Game constraints
             max_moves_per_player: 50,
             play_deterministically: true,
@@ -108,7 +107,7 @@ impl Settings {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     /// Validates that all settings are within acceptable ranges
     pub fn validate(&self) -> Result<(), EvolutionError> {
         // Population must be at least 2
@@ -118,15 +117,27 @@ impl Settings {
 
         // Neural network structure validation
         if self.neural_network_layer_structure.len() < 2 {
-            return Err(EvolutionError::TooFewLayers(self.neural_network_layer_structure.len()));
+            return Err(EvolutionError::TooFewLayers(
+                self.neural_network_layer_structure.len(),
+            ));
         }
         if self.neural_network_layer_structure[0] != self.input_layer_size {
-            return Err(EvolutionError::InvalidInputLayerSize(self.input_layer_size, self.neural_network_layer_structure[0]));
+            return Err(EvolutionError::InvalidInputLayerSize(
+                self.input_layer_size,
+                self.neural_network_layer_structure[0],
+            ));
         }
         if *self.neural_network_layer_structure.last().unwrap() != self.output_layer_size {
-            return Err(EvolutionError::InvalidOutputLayerSize(self.output_layer_size, *self.neural_network_layer_structure.last().unwrap()));
+            return Err(EvolutionError::InvalidOutputLayerSize(
+                self.output_layer_size,
+                *self.neural_network_layer_structure.last().unwrap(),
+            ));
         }
-        if self.neural_network_layer_structure.iter().any(|&size| size == 0) {
+        if self
+            .neural_network_layer_structure
+            .iter()
+            .any(|&size| size == 0)
+        {
             return Err(EvolutionError::EmptyLayer);
         }
 
@@ -136,12 +147,18 @@ impl Settings {
         }
         // Reactivation rate must be between 0 and 1
         if !(0.0..=1.0).contains(&self.reactivation_rate) {
-            return Err(EvolutionError::InvalidReactivationRate(self.reactivation_rate));
+            return Err(EvolutionError::InvalidReactivationRate(
+                self.reactivation_rate,
+            ));
         }
 
         // Survival rate and reactivation rate combined must still be less than 1
         if self.survival_rate + self.reactivation_rate >= 1.0 {
-            return Err(EvolutionError::InvalidSurvivalAndReactivationRate(self.survival_rate, self.reactivation_rate).into());
+            return Err(EvolutionError::InvalidSurvivalAndReactivationRate(
+                self.survival_rate,
+                self.reactivation_rate,
+            )
+            .into());
         }
 
         // Game constraints
@@ -233,12 +250,12 @@ impl Settings {
     pub fn output_layer_size(&self) -> usize {
         *self.neural_network_layer_structure.last().unwrap()
     }
-    
+
     /// Returns the number of hidden layers
     pub fn hidden_layer_count(&self) -> usize {
         self.neural_network_layer_structure.len() - 2
     }
-    
+
     /// Calculates how many networks survive to the next generation
     pub fn survivor_count(&self) -> usize {
         (self.generation_size as f64 * self.survival_rate).ceil() as usize
@@ -253,30 +270,30 @@ impl Settings {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_validation() {
         // Valid settings should pass validation
         let settings = Settings::default();
         assert!(settings.validate().is_ok());
-        
+
         // Invalid population size
         let settings = Settings::default().with_generation_size(1);
         assert!(settings.validate().is_err());
-        
+
         // Invalid neural network structure (wrong input layer)
         let settings = Settings::default().with_network_architecture(vec![100, 50, 132]);
         assert!(settings.validate().is_err());
-        
+
         // Invalid neural network structure (wrong output layer)
         let settings = Settings::default().with_network_architecture(vec![147, 50, 100]);
         assert!(settings.validate().is_err());
-        
+
         // Invalid survival rate
         let settings = Settings::default().with_survival_rate(1.5);
         assert!(settings.validate().is_err());
     }
-    
+
     #[test]
     fn test_builder_pattern() {
         let settings = Settings::new()
@@ -288,9 +305,12 @@ mod tests {
             .with_max_moves_per_player(150)
             .with_deterministic_play(true)
             .with_generation_count(500);
-        
+
         assert_eq!(settings.generation_size, 200);
-        assert_eq!(settings.neural_network_layer_structure, vec![147, 300, 200, 132]);
+        assert_eq!(
+            settings.neural_network_layer_structure,
+            vec![147, 300, 200, 132]
+        );
         assert_eq!(settings.survival_rate, 0.3);
         assert_eq!(settings.mutation_rate, 0.05);
         assert_eq!(settings.win_reward, 500.0);
@@ -301,7 +321,7 @@ mod tests {
         assert_eq!(settings.play_deterministically, true);
         assert_eq!(settings.number_of_generations, 500);
     }
-    
+
     #[test]
     fn test_helper_methods() {
         let settings = Settings::default()
@@ -309,7 +329,7 @@ mod tests {
             .with_network_architecture(vec![147, 64, 32, 132])
             .with_survival_rate(0.25)
             .with_reactivation_rate(0.1);
-        
+
         assert_eq!(settings.input_layer_size(), 147);
         assert_eq!(settings.output_layer_size(), 132);
         assert_eq!(settings.hidden_layer_count(), 2);
