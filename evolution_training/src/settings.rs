@@ -54,6 +54,10 @@ pub struct Settings {
     pub play_deterministically: bool,
     /// Total number of generations to run
     pub number_of_generations: usize,
+
+
+    /// Path to the log file for saving training data
+    pub log_file: String,
 }
 
 impl Default for Settings {
@@ -93,6 +97,8 @@ impl Default for Settings {
             play_deterministically: true,
             number_of_generations: 1000,
 
+            // Log file path
+            log_file: "evolution_history.json".to_string(),
         }
     }
 }
