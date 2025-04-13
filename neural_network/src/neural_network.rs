@@ -13,12 +13,6 @@ pub enum OutputActivation {
     Softmax,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum OutputActivation {
-    Sigmoid,
-    Softmax,
-}
-
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 
 pub struct NeuralNetwork {
