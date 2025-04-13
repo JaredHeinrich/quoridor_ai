@@ -6,14 +6,14 @@ use neural_network::neural_network::NeuralNetwork;
 use serde_json::{from_reader, to_writer};
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, Write, Seek, SeekFrom, BufRead};
-use std::sync::{Mutex};
+use std::sync::Mutex;
 use std::collections::HashMap;
 use std::time::UNIX_EPOCH;
 use lazy_static::lazy_static;
 
 // Global cache of file indexes with last modification time
 lazy_static! {
-    static ref LINE_INDEX_CACHE: Mutex<HashMap<String, (Vec<u64>, u64)>> = Mutex::new(HashMap::new());
+    static ref LINE_INDEX_CACHE: Mutex<HashMap<String, (Vec<u64>, u128)>> = Mutex::new(HashMap::new());
 }
 
 // Helper function to handle logging logic
@@ -137,7 +137,7 @@ pub fn read_specific_lines(
 // Get cached line index or build a new one
 fn get_cached_line_index(file_path: &str) -> Result<Vec<u64>> {
     let metadata = std::fs::metadata(file_path)?;
-    let modified = metadata.modified()?.duration_since(UNIX_EPOCH)?.as_secs();
+    let modified = metadata.modified()?.duration_since(UNIX_EPOCH)?.as_millis();
     
     // Try to get from cache first
     let mut cache = LINE_INDEX_CACHE.lock().unwrap();
@@ -279,4 +279,126 @@ mod tests {
         let result = read_log_entries(output_path);
         assert!(result.is_err());
     }
+
+    #[test]
+fn test_read_specific_lines() {
+    // Create a temporary file with multiple log entries
+    let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    let output_path = temp_file.path().to_str().unwrap();
+    
+    // Create several log entries
+    let log_entries = vec![
+        LogEntry::new(
+            0, 0,
+            NeuralNetwork::new(&vec![2, 2]).expect("Failed to create neural network"),
+        ),
+        LogEntry::new(
+            1, 1,
+            NeuralNetwork::new(&vec![2, 2]).expect("Failed to create neural network"),
+        ),
+        LogEntry::new(
+            2, 2,
+            NeuralNetwork::new(&vec![2, 2]).expect("Failed to create neural network"),
+        ),
+    ];
+    
+    // Write each entry on its own line
+    let mut file = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open(output_path)
+        .expect("Failed to open file");
+    
+    for entry in &log_entries {
+        serde_json::to_writer(&mut file, entry).expect("Failed to write entry");
+        writeln!(file).expect("Failed to write newline");
+    }
+    
+    // Test reading specific lines
+    let read_entries = read_specific_lines(&[0, 2], output_path).expect("Failed to read specific lines");
+    assert_eq!(read_entries.len(), 2);
+    assert_eq!(read_entries[0].generation_index, 0);
+    assert_eq!(read_entries[1].generation_index, 2);
+    
+    // Test reading with duplicates (should deduplicate)
+    let read_entries = read_specific_lines(&[1, 1, 1], output_path).expect("Failed to read specific lines");
+    assert_eq!(read_entries.len(), 1);
+    assert_eq!(read_entries[0].generation_index, 1);
+    
+    // Test reading out-of-bounds line
+    let result = read_specific_lines(&[5], output_path);
+    assert!(result.is_err());
+    
+    // Test reading empty selection
+    let read_entries = read_specific_lines(&[], output_path).expect("Failed to read specific lines");
+    assert!(read_entries.is_empty());
+}
+
+#[test]
+fn test_build_line_index() {
+    // Test with multiple lines
+    let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    let output_path = temp_file.path().to_str().unwrap();
+    
+    fs::write(output_path, "line1\nline2\nline3").expect("Failed to write test data");
+    
+    let positions = build_line_index(output_path).expect("Failed to build line index");
+    assert_eq!(positions.len(), 4); // 3 lines + end position
+    assert_eq!(positions[0], 0);    // First line starts at position 0
+    assert_eq!(positions[1], 6);    // After "line1\n"
+    assert_eq!(positions[2], 12);   // After "line2\n"
+    
+    // Test with empty file
+    let empty_file = NamedTempFile::new().expect("Failed to create temp file");
+    let empty_path = empty_file.path().to_str().unwrap();
+    
+    let positions = build_line_index(empty_path).expect("Failed to build line index for empty file");
+    assert_eq!(positions.len(), 1); // Just the starting position
+    
+    // Test with non-existent file
+    let result = build_line_index("non_existent_file.txt");
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_get_cached_line_index() {
+    // Create a temporary file
+    let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    let output_path = temp_file.path().to_str().unwrap();
+    
+    fs::write(output_path, "line1\nline2\nline3").expect("Failed to write test data");
+    
+    // First call should build the index
+    let first_call = get_cached_line_index(output_path).expect("Failed to get line index");
+    assert_eq!(first_call.len(), 4);
+    
+    // Second call should use cached index
+    let second_call = get_cached_line_index(output_path).expect("Failed to get cached line index");
+    assert_eq!(first_call, second_call); // Should be identical (from cache)
+    
+    // Modify the file to invalidate cache
+    std::thread::sleep(std::time::Duration::from_millis(100)); // Ensure modified time differs
+    fs::write(output_path, "line1.0\nline2\nline3\nline4").expect("Failed to update test data");
+    std::thread::sleep(std::time::Duration::from_millis(100));
+
+    // Should rebuild the index because file was modified
+    let third_call = get_cached_line_index(output_path).expect("Failed to get updated line index");
+    assert_eq!(third_call.len(), 5); // Now 4 lines + end position
+    assert_ne!(first_call, third_call);
+}
+
+#[test]
+fn test_read_specific_lines_empty_file() {
+    // Create an empty temporary file
+    let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    let output_path = temp_file.path().to_str().unwrap();
+    
+    // Try to read from empty file
+    let result = read_specific_lines(&[0], output_path).expect("Should succeed with empty file");
+    assert!(result.is_empty());
+    
+    // Reading no lines should succeed
+    let read_entries = read_specific_lines(&[], output_path).expect("Failed to read empty selection");
+    assert!(read_entries.is_empty());
+}
 }
