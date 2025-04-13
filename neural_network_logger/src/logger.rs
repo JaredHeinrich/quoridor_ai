@@ -5,6 +5,7 @@ use neural_network::neural_network::NeuralNetwork;
 use serde_json::{from_reader, to_writer};
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, Write};
+use evolution_training::evolution::generation::Generation;
 
 // Helper function to handle logging logic
 fn write_to_log<T: serde::Serialize + ?Sized>(data: &T, output_path: &str) -> Result<()> {
@@ -44,15 +45,15 @@ pub fn read_log_entries(output_path: &str) -> Result<Vec<LogEntry>> {
     Ok(log_entries)
 }
 
-// logs a single neural network with placement and generation
+// logs a single neural network with placement and generation_index
 pub fn log_single_network(
-    generation: usize,
+    generation_index: usize,
     placement: usize,
     neural_network: NeuralNetwork,
     output_path: &str,
 ) -> Result<()> {
     let log_entry = LogEntry {
-        generation,
+        generation_index,
         placement,
         neural_network,
     };
@@ -61,7 +62,7 @@ pub fn log_single_network(
 
 // Logs a generation of neural networks. It assmumes that the neural networks are in order with the first neural network being the best.
 pub fn log_generation(
-    generation: usize,
+    generation_index: usize,
     ordered_networks: Vec<NeuralNetwork>,
     output_path: &str,
 ) -> Result<()> {
@@ -69,13 +70,35 @@ pub fn log_generation(
         .into_iter()
         .enumerate()
         .map(|(index, network)| LogEntry {
-            generation,
+            generation_index,
             placement: index as usize,
             neural_network: network,
         })
         .collect();
 
     log_several_log_entries(&log_entries, output_path)
+}
+
+/// Logs an entire Generation with placements based on fitness scores
+/// (highest fitness gets first placement)
+pub fn log_generation_from_struct(
+    generation_index: usize,
+    generation: &Generation,
+    output_path: &str,
+) -> Result<()> {
+    // Create a sorted copy of the generation
+    let mut sorted_generation = generation.clone();
+    sorted_generation.sort_by_fitness()?;
+    
+    // Extract neural networks in order of fitness
+    let networks: Vec<NeuralNetwork> = sorted_generation
+        .agents
+        .iter()
+        .map(|agent| agent.neural_network.clone())
+        .collect();
+    
+    // Use existing function to log the generation
+    log_generation(generation_index, networks, output_path)
 }
 
 #[cfg(test)]
@@ -91,7 +114,7 @@ mod tests {
         let neural_network =
             NeuralNetwork::new(&vec![3, 2, 1]).expect("Failed to create neural network");
         let log_entry = LogEntry {
-            generation: 1,
+            generation_index: 1,
             placement: 4,
             neural_network,
         };
@@ -108,7 +131,7 @@ mod tests {
 
         let logged_entry: LogEntry =
             serde_json::from_str(&content.trim()).expect("Failed to deserialize log entry");
-        assert_eq!(logged_entry.generation, log_entry.generation);
+        assert_eq!(logged_entry.generation_index, log_entry.generation_index);
         assert_eq!(logged_entry.placement, log_entry.placement);
         assert_eq!(
             logged_entry.neural_network.layer_sizes,
