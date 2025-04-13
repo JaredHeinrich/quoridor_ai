@@ -1,11 +1,20 @@
 use crate::error::LoggerError;
 use crate::models::LogEntry;
+use crate::traits::GenerationLike;
 use anyhow::Result;
 use neural_network::neural_network::NeuralNetwork;
 use serde_json::{from_reader, to_writer};
 use std::fs::{File, OpenOptions};
-use std::io::{BufReader, Write};
-use evolution_training::evolution::generation::Generation;
+use std::io::{BufReader, Write, Seek, SeekFrom, BufRead};
+use std::sync::{Mutex};
+use std::collections::HashMap;
+use std::time::UNIX_EPOCH;
+use lazy_static::lazy_static;
+
+// Global cache of file indexes with last modification time
+lazy_static! {
+    static ref LINE_INDEX_CACHE: Mutex<HashMap<String, (Vec<u64>, u64)>> = Mutex::new(HashMap::new());
+}
 
 // Helper function to handle logging logic
 fn write_to_log<T: serde::Serialize + ?Sized>(data: &T, output_path: &str) -> Result<()> {
@@ -62,31 +71,104 @@ pub fn log_single_network(
     log_single_log_entry(&log_entry, output_path)
 }
 
-
-
 /// Logs an entire Generation with placements based on fitness scores
 /// (highest fitness gets first placement)
 pub fn log_generation(
-    generation: &Generation,
+    generation: &mut impl GenerationLike,
     output_path: &str,
 ) -> Result<()> {
-    // Create a sorted copy of the generation
-    let mut sorted_generation = generation.clone();
-    sorted_generation.sort_by_fitness()?;
+    // Sort the generation by fitness
+    generation.sort_by_fitness()?;
     
-    let log_entries: Vec<LogEntry> = sorted_generation
-        .agents
+    let log_entries: Vec<LogEntry> = generation
+        .agents()
         .iter()
         .enumerate()
         .map(|(index, agent)| LogEntry {
-            generation_index: generation.generation_index,
+            generation_index: generation.generation_index(),
             placement: index,
-            neural_network: agent.neural_network.clone(),
-            fitness: agent.fitness,  // Now we can include the fitness
+            neural_network: agent.neural_network().clone(),
+            fitness: agent.fitness(),
         })
         .collect();
         
     log_several_log_entries(&log_entries, output_path)
+}
+
+/// Read specific lines from a file using indexed access
+pub fn read_specific_lines(
+    line_numbers: &[usize],
+    output_path: &str
+) -> Result<Vec<LogEntry>> {
+    // Sort and deduplicate line numbers
+    let mut sorted_lines = line_numbers.to_vec();
+    sorted_lines.sort_unstable();
+    sorted_lines.dedup();
+    
+    // Get line positions, using cache if possible
+    let line_positions = get_cached_line_index(output_path)?;
+    let mut result = Vec::with_capacity(sorted_lines.len());
+    let file = File::open(output_path)?;
+    let mut reader = BufReader::new(file);
+    
+    // Read each requested line
+    for &line_num in &sorted_lines {
+        if line_num >= line_positions.len() {
+            return Err(anyhow::anyhow!("Line number out of bounds").into());
+        }
+        
+        // Seek to line position
+        reader.seek(SeekFrom::Start(line_positions[line_num]))?;
+        
+        // Read the line
+        let mut line = String::new();
+        reader.read_line(&mut line)?;
+        
+        // Parse the JSON
+        if !line.trim().is_empty() {
+            let entry: LogEntry = serde_json::from_str(line.trim())?;
+            result.push(entry);
+        }
+    }
+    
+    Ok(result)
+}
+
+// Get cached line index or build a new one
+fn get_cached_line_index(file_path: &str) -> Result<Vec<u64>> {
+    let metadata = std::fs::metadata(file_path)?;
+    let modified = metadata.modified()?.duration_since(UNIX_EPOCH)?.as_secs();
+    
+    // Try to get from cache first
+    let mut cache = LINE_INDEX_CACHE.lock().unwrap();
+    if let Some((positions, last_modified)) = cache.get(file_path) {
+        if *last_modified == modified {
+            return Ok(positions.clone());
+        }
+    }
+    
+    // Not in cache or modified, build new index
+    let positions = build_line_index(file_path)?;
+    cache.insert(file_path.to_string(), (positions.clone(), modified));
+    
+    Ok(positions)
+}
+
+/// Build an index of byte positions for each line
+fn build_line_index(file_path: &str) -> Result<Vec<u64>> {
+    let file = File::open(file_path)?;
+    let reader = BufReader::new(file);
+    
+    let mut positions = vec![0]; // First line starts at position 0
+    let mut pos = 0;
+    
+    for line in reader.lines() {
+        let line_len = line?.len() as u64 + 1; // +1 for newline
+        pos += line_len;
+        positions.push(pos);
+    }
+    
+    Ok(positions)
 }
 
 #[cfg(test)]

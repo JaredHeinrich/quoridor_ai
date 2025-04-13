@@ -1917,6 +1917,7 @@ dependencies = [
  "anyhow",
  "matrix",
  "neural_network",
+ "neural_network_logger",
  "quoridor",
  "rand",
  "serde",
@@ -2766,7 +2767,7 @@ name = "neural_network_logger"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "evolution_training",
+ "lazy_static",
  "matrix",
  "neural_network",
  "serde",

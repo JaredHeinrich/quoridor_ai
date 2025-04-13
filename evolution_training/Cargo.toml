@@ -11,5 +11,6 @@ quoridor = {path = "../quoridor"}
 thiserror = "2.0.12"
 rand = "0.9.0"
 serde = { version = "1.0", features = ["derive"] }
+neural_network_logger = { path = "../neural_network_logger"}
 
 [dev-dependencies]

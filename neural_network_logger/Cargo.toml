@@ -10,7 +10,7 @@ matrix = {path = "../matrix"}
 thiserror = "2.0.12"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-evolution_training = {path = "../evolution_training"}
+lazy_static = "1.4.0"
 
 [dev-dependencies]
-tempfile = "3.8"  # Use a recent version
+tempfile = "3.8"
