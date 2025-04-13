@@ -164,15 +164,15 @@ impl Settings {
     /// Sets all reward function coefficients at once
     pub fn with_reward_coefficients(
         mut self,
-        win: f64,
-        own_distance: f64,
-        other_distance: f64,
-        turn_reward: f64,
+        win_rew: f64,
+        own_distance_pun: f64,
+        other_distance_rew: f64,
+        turn_rew: f64,
     ) -> Self {
-        self.win_reward = win;
-        self.own_distance_punishment = own_distance;
-        self.other_pawn_distance_reward = other_distance;
-        self.per_saved_turn_reward = turn_reward;
+        self.win_reward = win_rew;
+        self.own_distance_punishment = own_distance_pun;
+        self.other_pawn_distance_reward = other_distance_rew;
+        self.per_saved_turn_reward = turn_rew;
         self
     }
 
