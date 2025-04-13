@@ -7,18 +7,12 @@ use crate::{
     error::NNError,
 };
 
-pub enum OutputActivation {
-    Sigmoid,
-    Softmax,
-}
-
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]
 pub enum OutputActivation {
     Sigmoid,
     Softmax,
 }
-
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct NeuralNetwork {
     pub layer_sizes: Vec<usize>,
     pub weights: Vec<Matrix>,
