@@ -75,7 +75,11 @@ impl NeuralNetwork {
     ///
     /// For the output layer sigmoid is used as activation function instead:
     /// Sigmoid(weights * input_vector + biases)
-    pub fn feed_forward(&self, input_vector: Matrix, output_activation: OutputActivation) -> Result<Matrix> {
+    pub fn feed_forward(
+        &self,
+        input_vector: Matrix,
+        output_activation: OutputActivation,
+    ) -> Result<Matrix> {
         if input_vector.columns != 1 {
             return Err(
                 NNError::InvalidInputVectorShape(input_vector.rows, input_vector.columns).into(),
@@ -95,7 +99,7 @@ impl NeuralNetwork {
         while let Some((weight_matrix, bias_matrix)) = layer_iter.next() {
             process_layer(&mut result, weight_matrix, bias_matrix, relu);
         }
-        
+
         // Choose adequate activation function for the output layer
         match output_activation {
             OutputActivation::Sigmoid => {
@@ -113,12 +117,12 @@ impl NeuralNetwork {
                     .unwrap()
                     .add(output_layer_bias_matrix)
                     .unwrap();
-                
+
                 // Apply softmax to the entire vector
-                result = softmax_maxtrick( result);
+                result = softmax_maxtrick(result);
             }
         }
-        
+
         Ok(result)
     }
 

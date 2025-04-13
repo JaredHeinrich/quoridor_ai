@@ -40,17 +40,19 @@ pub enum EvolutionError {
 pub enum GameAdapterError {
     #[error("Wall position out of bounds: ({0}, {1})")]
     WallPositionOutOfBounds(usize, usize),
-    
+
     #[error("Invalid game state encoding")]
     InvalidEncoding,
-    
+
     #[error("Invalid move decoding, output matrix: Rows: {0}, Columns: {1}")]
     InvalidMoveDecoding(usize, usize),
 
     #[error("No valid moves found, should never happen, as the game is designed to not enter a state with only invalid moves")]
     NoValidMoves,
 
-    #[error("To use non-deterministic function, all values need to be probabilities >= 0. Value: {0}")]
+    #[error(
+        "To use non-deterministic function, all values need to be probabilities >= 0. Value: {0}"
+    )]
     InvalidProbabilitySoftmax(f64),
 
     #[error("To use non-deterministic function, all values need to be probabilities >= 0 that add up to 1. Probabilities add up to {0}")]
@@ -60,6 +62,5 @@ pub enum GameAdapterError {
     IndexMovesOutOfBounds,
 
     #[error("Invalid move")]
-    InvalidMove
-}   
-
+    InvalidMove,
+}
