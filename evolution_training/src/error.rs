@@ -20,6 +20,12 @@ pub enum EvolutionError {
     #[error("Survival rate must be between 0.0 and 1.0, got {0}")]
     InvalidSurvivalRate(f64),
 
+    #[error("Reactivation rate must be between 0.0 and 1.0, got {0}")]
+    InvalidReactivationRate(f64),
+
+    #[error("Sum of Survival rate: {0} and reactivation rate: {1} must be between 0.0 and 1.0")]
+    InvalidSurvivalAndReactivationRate(f64, f64),
+
     #[error("Maximum moves per player must be at least 1")]
     InvalidMaxMoves,
 
