@@ -204,6 +204,11 @@ impl Settings {
         self
     }
 
+    pub fn with_mutation_rate_decrease(mut self, decrease_rate: f64) -> Self {
+        self.mutation_rate_decrease = decrease_rate;
+        self
+    }
+
     /// Sets all reward function coefficients at once
     pub fn with_reward_coefficients(
         mut self,
