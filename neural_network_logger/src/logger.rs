@@ -50,39 +50,23 @@ pub fn log_single_network(
     generation_index: usize,
     placement: usize,
     neural_network: NeuralNetwork,
+    fitness: Option<f64>,
     output_path: &str,
 ) -> Result<()> {
     let log_entry = LogEntry {
         generation_index,
         placement,
         neural_network,
+        fitness,
     };
     log_single_log_entry(&log_entry, output_path)
 }
 
-// Logs a generation of neural networks. It assmumes that the neural networks are in order with the first neural network being the best.
-pub fn log_generation(
-    generation_index: usize,
-    ordered_networks: Vec<NeuralNetwork>,
-    output_path: &str,
-) -> Result<()> {
-    let log_entries: Vec<LogEntry> = ordered_networks
-        .into_iter()
-        .enumerate()
-        .map(|(index, network)| LogEntry {
-            generation_index,
-            placement: index as usize,
-            neural_network: network,
-        })
-        .collect();
 
-    log_several_log_entries(&log_entries, output_path)
-}
 
 /// Logs an entire Generation with placements based on fitness scores
 /// (highest fitness gets first placement)
-pub fn log_generation_from_struct(
-    generation_index: usize,
+pub fn log_generation(
     generation: &Generation,
     output_path: &str,
 ) -> Result<()> {
@@ -90,15 +74,19 @@ pub fn log_generation_from_struct(
     let mut sorted_generation = generation.clone();
     sorted_generation.sort_by_fitness()?;
     
-    // Extract neural networks in order of fitness
-    let networks: Vec<NeuralNetwork> = sorted_generation
+    let log_entries: Vec<LogEntry> = sorted_generation
         .agents
         .iter()
-        .map(|agent| agent.neural_network.clone())
+        .enumerate()
+        .map(|(index, agent)| LogEntry {
+            generation_index: generation.generation_index,
+            placement: index,
+            neural_network: agent.neural_network.clone(),
+            fitness: agent.fitness,  // Now we can include the fitness
+        })
         .collect();
-    
-    // Use existing function to log the generation
-    log_generation(generation_index, networks, output_path)
+        
+    log_several_log_entries(&log_entries, output_path)
 }
 
 #[cfg(test)]
@@ -117,6 +105,7 @@ mod tests {
             generation_index: 1,
             placement: 4,
             neural_network,
+            fitness: Some(0.95),
         };
         let temp_file = NamedTempFile::new().expect("Failed to create temp file");
         let output_path = temp_file.path().to_str().unwrap();
@@ -137,6 +126,7 @@ mod tests {
             logged_entry.neural_network.layer_sizes,
             log_entry.neural_network.layer_sizes
         );
+        assert_eq!(logged_entry.fitness, log_entry.fitness);
     }
 
     #[test]

@@ -6,6 +6,7 @@ pub struct LogEntry {
     pub generation_index: usize,
     pub placement: usize,
     pub neural_network: NeuralNetwork,
+    pub fitness: Option<f64>,
 }
 
 impl LogEntry {
@@ -14,6 +15,7 @@ impl LogEntry {
             generation_index,
             placement,
             neural_network,
+            fitness: None,
         }
     }
 }
