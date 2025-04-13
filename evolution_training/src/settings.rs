@@ -237,6 +237,11 @@ impl Settings {
     pub fn survivors_count(&self) -> usize {
         (self.generation_size as f64 * self.survival_rate).ceil() as usize
     }
+
+    /// Calculates how many networks are reactivated randomly from previous generations
+    pub fn reactivators_count(&self) -> usize {
+        (self.generation_size as f64 * self.reactivation_rate).ceil() as usize
+    }
 }
 
 #[cfg(test)]
@@ -296,11 +301,13 @@ mod tests {
         let settings = Settings::default()
             .with_generation_size(200)
             .with_network_architecture(vec![147, 64, 32, 132])
-            .with_survival_rate(0.25);
+            .with_survival_rate(0.25)
+            .with_reactivation_rate(0.1);
         
         assert_eq!(settings.input_layer_size(), 147);
         assert_eq!(settings.output_layer_size(), 132);
         assert_eq!(settings.hidden_layer_count(), 2);
         assert_eq!(settings.survivors_count(), 50); // 25% of 200
+        assert_eq!(settings.reactivators_count(), 20); // 10% of 200
     }
 }
