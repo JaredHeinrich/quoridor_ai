@@ -149,12 +149,9 @@ pub fn encode_from_current_player(game: &Game) -> Result<Matrix> {
 /// Calculates the Manhattan distance from a pawn to its goal
 ///
 /// This is useful for reward calculations based on pawn positions
-pub fn distance_to_goal(game: &Game, pawn_index: usize) -> usize {
-    let pawn = &game.pawns[pawn_index];
-    let goal_y = pawn.goal_line;
-    let current_y = pawn.position.y;
-    
-    (goal_y - current_y).abs() as usize
+pub fn distance_to_goal(game: &Game, player_index: usize) -> usize {
+    let pawn = &game.pawns[player_index];
+    (pawn.position.y - pawn.goal_line).abs() as usize
 }
 
 #[cfg(test)]
