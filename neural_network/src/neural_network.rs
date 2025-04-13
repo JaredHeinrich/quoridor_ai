@@ -1,5 +1,6 @@
 use anyhow::Result;
 use matrix::matrix::Matrix;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     activation::{relu, sigmoid, softmax_maxtrick},
@@ -12,7 +13,14 @@ pub enum OutputActivation {
     Softmax,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
+pub enum OutputActivation {
+    Sigmoid,
+    Softmax,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+
 pub struct NeuralNetwork {
     pub layer_sizes: Vec<usize>,
     pub weights: Vec<Matrix>,

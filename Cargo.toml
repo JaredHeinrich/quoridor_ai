@@ -5,4 +5,5 @@ members = [ "evolution_training",
     "matrix",
     "neural_network",
     "quoridor",
+    "neural_network_logger",
 ]

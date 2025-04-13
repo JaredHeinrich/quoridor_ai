@@ -1,9 +1,10 @@
 use anyhow::Result;
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 
 use crate::error::MatrixError;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Matrix {
     pub rows: usize,
     pub columns: usize,
@@ -135,6 +136,20 @@ impl Matrix {
         for value in &mut self.values {
             *value += rand::rng().random_range(-1.0..1.0) * mutation_rate;
         }
+    }
+}
+
+impl PartialEq for Matrix {
+    fn eq(&self, other: &Self) -> bool {
+        if self.rows != other.rows || self.columns != other.columns {
+            return false;
+        }
+
+        const EPSILON: f64 = 1e-10;
+        self.values
+            .iter()
+            .zip(other.values.iter())
+            .all(|(a, b)| (a - b).abs() < EPSILON)
     }
 }
 
