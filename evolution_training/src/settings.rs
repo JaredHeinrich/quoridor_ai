@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use crate::error::EvolutionError;
+use crate::{error::EvolutionError, game_adapter::reward::RewardFunction};
 
 /// Configuration settings for the evolutionary training process.
 /// 
@@ -36,6 +36,7 @@ pub struct Settings {
     pub mutation_rate_decrease: f64,
     
     // Reward function coefficients
+    pub reward_function: RewardFunction,
     /// Reward for winning the game
     pub win_reward: f64,
     /// Penalty based on agent's distance from goal (negative value)
@@ -77,7 +78,8 @@ impl Default for Settings {
             // Decrease mutation rate by 0.5% each generation
             mutation_rate_decrease: 0.005,
             
-            // Reward coefficients
+            // Reward 
+            reward_function: RewardFunction::Simple,
             win_reward: 1000.0,
             own_distance_punishment: -10.0,
             other_pawn_distance_reward: 5.0,
@@ -87,6 +89,7 @@ impl Default for Settings {
             max_moves_per_player: 50,
             play_deterministically: true,
             number_of_generations: 1000,
+
         }
     }
 }
@@ -164,11 +167,13 @@ impl Settings {
     /// Sets all reward function coefficients at once
     pub fn with_reward_coefficients(
         mut self,
+        function: RewardFunction,
         win_rew: f64,
         own_distance_pun: f64,
         other_distance_rew: f64,
         turn_rew: f64,
     ) -> Self {
+        self.reward_function = function;
         self.win_reward = win_rew;
         self.own_distance_punishment = own_distance_pun;
         self.other_pawn_distance_reward = other_distance_rew;
@@ -251,7 +256,7 @@ mod tests {
             .with_network_architecture(vec![147, 300, 200, 132])
             .with_survival_rate(0.3)
             .with_mutation_rate(0.05)
-            .with_reward_coefficients(500.0, -5.0, 3.0, 0.5)
+            .with_reward_coefficients(RewardFunction::Symmetric, 500.0, -5.0, 3.0, 0.5)
             .with_max_moves_per_player(150)
             .with_deterministic_play(true)
             .with_generation_count(500);

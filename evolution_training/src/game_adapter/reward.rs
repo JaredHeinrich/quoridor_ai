@@ -1,7 +1,8 @@
 use quoridor::game_state::Game;
+use serde::{Deserialize, Serialize};
 use crate::settings::Settings;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum RewardFunction {
     Simple,
     Symmetric,
@@ -90,9 +91,9 @@ mod tests {
         }
     }
 
-    fn create_test_settings() -> Settings {
+    fn create_test_settings(function: RewardFunction) -> Settings {
         Settings::default()
-            .with_reward_coefficients(100.0, -5.0, 2.0, 0.5)
+            .with_reward_coefficients(function, 100.0, -5.0, 2.0, 0.5)
             .with_max_moves_per_player(50)
     }
 
@@ -112,9 +113,9 @@ mod tests {
     }
 
     #[test]
-    fn test_reward_for_win() {
+    fn test_reward_simple_for_win() {
         let mut game = create_test_game();
-        let settings = create_test_settings();
+        let settings = create_test_settings(RewardFunction::Simple);
         
         // Move bottom player to goal (win)
         game.pawns[0].position = Vector::new(4, 0);
@@ -127,9 +128,9 @@ mod tests {
     }
 
     #[test]
-    fn test_reward_for_loss() {
+    fn test_reward_simple_for_loss() {
         let game = create_test_game();
-        let settings = create_test_settings();
+        let settings = create_test_settings(RewardFunction::Simple);
         
         let reward = reward_simple_per_game(&game, 0, 10, &settings);
         
@@ -141,7 +142,7 @@ mod tests {
     #[test]
     fn test_symmetric_reward_sum_is_zero() {
         let mut game = create_test_game();
-        let settings = create_test_settings();
+        let settings = create_test_settings(RewardFunction::Symmetric);
         
         // Set the positions to arbitrary values
         game.pawns[0].position = Vector::new(4, 2);
@@ -157,7 +158,7 @@ mod tests {
     #[test]
     fn test_symmetric_reward_win_loss() {
         let mut game = create_test_game();
-        let settings = create_test_settings();
+        let settings = create_test_settings(RewardFunction::Symmetric);
         
         // Player 0 wins
         game.pawns[0].position = Vector::new(4, 0);
