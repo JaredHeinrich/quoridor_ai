@@ -234,12 +234,12 @@ impl Settings {
     }
     
     /// Calculates how many networks survive to the next generation
-    pub fn survivors_count(&self) -> usize {
+    pub fn survivor_count(&self) -> usize {
         (self.generation_size as f64 * self.survival_rate).ceil() as usize
     }
 
     /// Calculates how many networks are reactivated randomly from previous generations
-    pub fn reactivators_count(&self) -> usize {
+    pub fn reactivator_count(&self) -> usize {
         (self.generation_size as f64 * self.reactivation_rate).ceil() as usize
     }
 }
@@ -307,7 +307,7 @@ mod tests {
         assert_eq!(settings.input_layer_size(), 147);
         assert_eq!(settings.output_layer_size(), 132);
         assert_eq!(settings.hidden_layer_count(), 2);
-        assert_eq!(settings.survivors_count(), 50); // 25% of 200
-        assert_eq!(settings.reactivators_count(), 20); // 10% of 200
+        assert_eq!(settings.survivor_count(), 50); // 25% of 200
+        assert_eq!(settings.reactivator_count(), 20); // 10% of 200
     }
 }
