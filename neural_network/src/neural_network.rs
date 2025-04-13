@@ -13,7 +13,7 @@ pub enum OutputActivation {
     Softmax,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 
 pub struct NeuralNetwork {
     pub layer_sizes: Vec<usize>,
