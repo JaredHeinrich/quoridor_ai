@@ -28,6 +28,7 @@ pub struct Settings {
     // Selection parameters
     /// Fraction of population that survives to next generation (range: 0.0-1.0)
     pub survival_rate: f64,
+    pub reactivation_rate: f64,
 
     /// Mutation rate for neural network weights and biases
     pub mutation_rate: f64,
@@ -71,7 +72,9 @@ impl Default for Settings {
             neural_network_layer_structure: vec![147, 128, 128, 128, 132],
             
             // 50% of population survives to next generation
-            survival_rate: 0.5,
+            survival_rate: 0.4,
+            reactivation_rate: 0.2,
+
             // Medium mutation rate for diversity
             mutation_rate: 0.1,
 
@@ -125,6 +128,15 @@ impl Settings {
         if !(0.0..=1.0).contains(&self.survival_rate) {
             return Err(EvolutionError::InvalidSurvivalRate(self.survival_rate));
         }
+        // Reactivation rate must be between 0 and 1
+        if !(0.0..=1.0).contains(&self.reactivation_rate) {
+            return Err(EvolutionError::InvalidReactivationRate(self.reactivation_rate));
+        }
+
+        // Survival rate and reactivation rate combined must still be less than 1
+        if self.survival_rate + self.reactivation_rate >= 1.0 {
+            return Err(EvolutionError::InvalidSurvivalAndReactivationRate(self.survival_rate, self.reactivation_rate).into());
+        }
 
         // Game constraints
         if self.max_moves_per_player == 0 {
@@ -155,6 +167,11 @@ impl Settings {
     /// Sets the survival rate (fraction of population that survives to next generation)
     pub fn with_survival_rate(mut self, rate: f64) -> Self {
         self.survival_rate = rate;
+        self
+    }
+
+    pub fn with_reactivation_rate(mut self, rate: f64) -> Self {
+        self.reactivation_rate = rate;
         self
     }
 
