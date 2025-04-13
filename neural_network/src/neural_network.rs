@@ -7,7 +7,12 @@ use crate::{
     error::NNError,
 };
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub enum OutputActivation {
+    Sigmoid,
+    Softmax,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]
 pub enum OutputActivation {
     Sigmoid,
     Softmax,
