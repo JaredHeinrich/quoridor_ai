@@ -19,7 +19,7 @@ impl Generation {
         
         for _ in 0..settings.generation_size {
             let neural_network = NeuralNetwork::new(&settings.neural_network_layer_structure)?;
-            agents.push(Agent { neural_network, fitness: Some(0.0) });
+            agents.push(Agent { neural_network, fitness: 0.0 });
         }
         
         Ok(Generation { agents })
@@ -47,7 +47,7 @@ impl Generation {
         }
         
         for (agent, score) in self.agents.iter_mut().zip(scores) {
-            agent.fitness = Some(score);
+            agent.fitness = score;
         }
         
         Ok(())
@@ -56,7 +56,7 @@ impl Generation {
     /// Sort agents by fitness score (highest first)
     pub fn sort_by_fitness(&mut self) -> Result<()> {        
         self.agents.sort_by(|a, b| {
-            b.fitness.unwrap().partial_cmp(&a.fitness.unwrap()).unwrap()
+            b.fitness.partial_cmp(&a.fitness).unwrap()
         });
         
         Ok(())
@@ -84,7 +84,7 @@ mod tests {
                 agent.neural_network.layer_sizes, 
                 settings.neural_network_layer_structure
             );
-            assert_eq!(agent.fitness.unwrap(), 0.0);
+            assert_eq!(agent.fitness, 0.0);
         }
     }
     
@@ -129,7 +129,7 @@ mod tests {
         
         // Set fitness for all agents
         for (i, agent) in generation.agents.iter_mut().enumerate() {
-            agent.fitness = Some((i + 1) as f64);
+            agent.fitness = (i + 1) as f64;
         }
         
         // Test get_network
@@ -153,7 +153,7 @@ mod tests {
         
         // Check if scores were set correctly
         for (i, agent) in generation.agents.iter().enumerate() {
-            assert_eq!(agent.fitness.unwrap(), scores[i]);
+            assert_eq!(agent.fitness, scores[i]);
         }
         
         // Try setting wrong number of scores
@@ -176,7 +176,7 @@ mod tests {
         // Check if sorted correctly (highest first)
         let sorted_fitness: Vec<f64> = generation.agents
             .iter()
-            .map(|agent| agent.fitness.unwrap())
+            .map(|agent| agent.fitness)
             .collect();
         assert_eq!(sorted_fitness, vec![4.0, 3.0, 2.0, 1.0]);
     }
