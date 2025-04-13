@@ -124,7 +124,6 @@ mod tests {
         let settings = Settings::default().with_generation_size(5);
         let mut generation = Generation::create_initial(&settings).unwrap();
         
-        // Test size
         assert_eq!(generation.size(), 5);
         
         // Set fitness for all agents
@@ -132,7 +131,6 @@ mod tests {
             agent.fitness = (i + 1) as f64;
         }
         
-        // Test get_network
         let network = generation.get_neural_network(2);
         assert!(network.is_some());
         assert_eq!(network.unwrap().layer_sizes, settings.neural_network_layer_structure);
