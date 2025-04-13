@@ -2766,6 +2766,7 @@ name = "neural_network_logger"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "evolution_training",
  "matrix",
  "neural_network",
  "serde",
