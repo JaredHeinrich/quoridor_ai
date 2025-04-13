@@ -14,16 +14,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install ALSA dependencies
-        run: sudo apt update && sudo apt install -y libasound2-dev
+      - uses: ./github/actions/dependencies
       - name: Build
         run: cargo build --verbose
   tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install ALSA dependencies
-        run: sudo apt update && sudo apt install -y libasound2-dev
+      - uses: ./github/actions/dependencies
       - name: Run tests
         run: cargo test --verbose
   formatting:
@@ -36,7 +34,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install ALSA dependencies
-        run: sudo apt update && sudo apt install -y libasound2-dev
+      - uses: ./github/actions/dependencies
       - name: Build and generate docs
         run: cargo doc --no-deps --document-private-items
