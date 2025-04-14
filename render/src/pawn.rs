@@ -21,10 +21,7 @@ pub fn spawn_pawn(
     ));
 }
 
-pub fn clear_pawns(
-    commands: &mut Commands,
-    pawns: &Query<Entity, With<Pawn>>,
-) {
+pub fn clear_pawns(commands: &mut Commands, pawns: &Query<Entity, With<Pawn>>) {
     for pawn in pawns.iter() {
         commands.entity(pawn).despawn();
     }

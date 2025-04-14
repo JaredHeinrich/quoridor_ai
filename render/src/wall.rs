@@ -33,10 +33,7 @@ fn calculate_screen_pos(wall_pos: Vector) -> Vec2 {
     Vec2::new(screen_x, screen_y)
 }
 
-pub fn clear_walls(
-    commands: &mut Commands,
-    walls: &Query<Entity, With<Wall>>,
-) {
+pub fn clear_walls(commands: &mut Commands, walls: &Query<Entity, With<Wall>>) {
     for wall in walls.iter() {
         commands.entity(wall).despawn();
     }
