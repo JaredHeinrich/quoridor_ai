@@ -3,6 +3,7 @@ use rayon::prelude::*;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+use crate::benchmark::{play_against_benchmark, RandomAgent, SimpleForwardAgent};
 use crate::evolution::generation::Generation;
 use crate::evolution::selection::select_next_generation;
 use crate::game_adapter::board_encoder::{distance_to_goal, encode_board};
@@ -13,7 +14,6 @@ use neural_network::neural_network::{NeuralNetwork, OutputActivation};
 use neural_network_logger::logger::{log_generation, log_single_log_entry};
 use neural_network_logger::models::LogEntry;
 use quoridor::game_state::Game;
-use crate::benchmark::{RandomAgent, SimpleForwardAgent, play_against_benchmark};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum GameResult {
@@ -101,13 +101,11 @@ impl TrainingEnvironment {
             self.log_generation_results()?;
 
             let generation_duration = gen_start_time.elapsed();
-            
+
             // Store generation time for plotting (in seconds)
-            self.generation_time_history.push((
-                self.generation_number,
-                generation_duration.as_secs_f64()
-            ));
-            
+            self.generation_time_history
+                .push((self.generation_number, generation_duration.as_secs_f64()));
+
             println!(
                 "Generation {} completed in {:.2?}",
                 self.generation_number, generation_duration
@@ -126,7 +124,7 @@ impl TrainingEnvironment {
             total_duration
         );
         println!("Results saved to {}", self.settings.log_file);
-        
+
         // Generate plots using the visualization module
         crate::visualization::plot_fitness_history(self)?;
         crate::visualization::plot_generation_times(self)?;
@@ -161,18 +159,24 @@ impl TrainingEnvironment {
         println!("  Min fitness: {:.2}", min_fitness);
 
         // Update fitness history
-        self.fitness_history
-            .push((self.generation_number, top_fitness, avg_fitness, min_fitness));
-        
+        self.fitness_history.push((
+            self.generation_number,
+            top_fitness,
+            avg_fitness,
+            min_fitness,
+        ));
+
         // Calculate and record diversity
         let diversity = self.calculate_generation_diversity();
-        self.diversity_history.push((self.generation_number, diversity));
-        
+        self.diversity_history
+            .push((self.generation_number, diversity));
+
         println!("  Genetic diversity: {:.4}", diversity);
-        
+
         // Evaluate against benchmarks
         let (random_score, simple_score) = self.evaluate_against_benchmarks()?;
-        self.benchmark_history.push((self.generation_number, random_score, simple_score));
+        self.benchmark_history
+            .push((self.generation_number, random_score, simple_score));
 
         Ok(())
     }
@@ -300,7 +304,8 @@ impl TrainingEnvironment {
             } else {
                 neural_network1
             };
-            let action: GameResult = self.nn_move(current_agent_nn, &mut game, move_counter, output_activation);
+            let action: GameResult =
+                self.nn_move(current_agent_nn, &mut game, move_counter, output_activation);
             // If the game is won, break out of the loop
             if let GameResult::Win(moves_to_win) = action {
                 moves_played = moves_to_win;
@@ -310,14 +315,14 @@ impl TrainingEnvironment {
                     generation_index: usize::MAX,
                     placement: usize::MAX,
                     neural_network: neural_network0.clone(),
-                    fitness: None
+                    fitness: None,
                 };
                 let _result = log_single_log_entry(&log_entry, &self.settings.log_file);
                 let log_entry = LogEntry {
                     generation_index: usize::MAX,
                     placement: current_player_index, //use current_player_index to identify who had invalid moves
                     neural_network: neural_network1.clone(),
-                    fitness: None
+                    fitness: None,
                 };
                 let _result = log_single_log_entry(&log_entry, &self.settings.log_file);
 
@@ -340,7 +345,6 @@ impl TrainingEnvironment {
         let nn_output = neural_network.feed_forward(game_state.unwrap(), output_activation);
         let game_move = decode_move(&nn_output.unwrap(), &game, &self.settings);
 
-        
         // Execute move
         if let Err(_) = &game.make_move(game_move.unwrap()) {
             // If move execution failed, we'll end the game and consider it a draw
@@ -356,7 +360,6 @@ impl TrainingEnvironment {
         } else {
             return GameResult::Draw;
         }
-
     }
 
     /// Check if the game is over (win or max moves reached)
@@ -386,25 +389,25 @@ impl TrainingEnvironment {
     fn calculate_generation_diversity(&self) -> f64 {
         let generation = &self.current_generation;
         let agents = &generation.agents;
-        
+
         if agents.len() <= 1 {
             return 0.0;
         }
-        
+
         // To avoid O(n²) computation for large populations, sample pairs
         let max_pairs = 1000;
         let use_sampling = agents.len() * (agents.len() - 1) / 2 > max_pairs;
-        
+
         let mut total_distance = 0.0;
         let mut pair_count = 0;
-        
+
         // If population is small, compute all pairwise distances
         if !use_sampling {
             for i in 0..agents.len() {
-                for j in (i+1)..agents.len() {
+                for j in (i + 1)..agents.len() {
                     if let (Some(nn1), Some(nn2)) = (
                         generation.get_neural_network(i),
-                        generation.get_neural_network(j)
+                        generation.get_neural_network(j),
                     ) {
                         let distance = crate::visualization::calculate_network_distance(nn1, nn2);
                         total_distance += distance;
@@ -416,28 +419,28 @@ impl TrainingEnvironment {
             // For large populations, use random sampling
             use rand::prelude::*;
             let mut rng = rand::rng();
-            
+
             let mut pairs_sampled = 0;
             while pairs_sampled < max_pairs {
                 let i = rng.random_range(0..agents.len());
                 let j = rng.random_range(0..agents.len());
-                
+
                 // Ensure we don't compare an agent with itself
                 if i != j {
                     if let (Some(nn1), Some(nn2)) = (
                         generation.get_neural_network(i),
-                        generation.get_neural_network(j)
+                        generation.get_neural_network(j),
                     ) {
                         let distance = crate::visualization::calculate_network_distance(nn1, nn2);
                         total_distance += distance;
                         pair_count += 1;
                     }
                 }
-                
+
                 pairs_sampled += 1;
             }
         }
-        
+
         if pair_count > 0 {
             total_distance / pair_count as f64
         } else {
@@ -491,49 +494,56 @@ impl TrainingEnvironment {
         // Create benchmark agents
         let random_agent = RandomAgent::new();
         let simple_agent = SimpleForwardAgent::new();
-        
+
         // Get the top neural network from current generation
         if self.current_generation.agents.is_empty() {
             return Ok((0.0, 0.0));
         }
-        
+
         // Sort and get top agent
         let mut sorted_generation = self.current_generation.clone();
         sorted_generation.sort_by_fitness()?;
-        
-        let top_nn = sorted_generation.get_neural_network(0)
+
+        let top_nn = sorted_generation
+            .get_neural_network(0)
             .ok_or_else(|| anyhow::anyhow!("Failed to get top neural network"))?;
-        
+
         // Play multiple games against benchmarks for more reliable results
         let num_games = 1;
         let mut random_score = 0.0;
         let mut simple_score = 0.0;
-        
+
         println!("Evaluating top agent against benchmarks...");
-        
+
         // Play against random agent
         for i in 0..num_games {
             let neural_network_plays_first = i % 2 == 0; // Alternate first player
             let (nn_score, _) = play_against_benchmark(
-                top_nn, &random_agent, &self.settings, neural_network_plays_first
+                top_nn,
+                &random_agent,
+                &self.settings,
+                neural_network_plays_first,
             )?;
             random_score += nn_score;
         }
         random_score /= num_games as f64;
-        
+
         // Play against simple forward agent
         for i in 0..num_games {
             let neural_network_plays_first = i % 2 == 0; // Alternate first player
             let (nn_score, _) = play_against_benchmark(
-                top_nn, &simple_agent, &self.settings, neural_network_plays_first
+                top_nn,
+                &simple_agent,
+                &self.settings,
+                neural_network_plays_first,
             )?;
             simple_score += nn_score;
         }
         simple_score /= num_games as f64;
-        
+
         println!("  vs Random Agent: {:.2}", random_score);
         println!("  vs Forward Agent: {:.2}", simple_score);
-        
+
         Ok((random_score, simple_score))
     }
 }
