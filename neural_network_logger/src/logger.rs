@@ -38,9 +38,34 @@ pub fn log_single_log_entry(log_entry: &LogEntry, output_path: &str) -> Result<(
     write_to_log(log_entry, output_path)
 }
 
-// Logs a generation of neural networks to a file in JSON format.
+// Logs multiple neural networks to a file in JSON format, one per line.
 pub fn log_several_log_entries(log_entries: &[LogEntry], output_path: &str) -> Result<()> {
-    write_to_log(log_entries, output_path)
+    if log_entries.is_empty() {
+        return Ok(());
+    }
+
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(output_path)
+        .map_err(|e| LoggerError::FileOpenError(output_path.to_string(), e.to_string()))?;
+
+    // Create a buffer to hold all serialized entries
+    let mut buffer = String::new();
+    
+    // Serialize each entry and add to buffer
+    for entry in log_entries {
+        let json = serde_json::to_string(entry)
+            .map_err(|e| LoggerError::SerializationError(e.to_string()))?;
+        buffer.push_str(&json);
+        buffer.push('\n');
+    }
+    
+    // Write all entries at once
+    file.write_all(buffer.as_bytes())
+        .map_err(|e| LoggerError::WriteError(output_path.to_string(), e.to_string()))?;
+
+    Ok(())
 }
 
 // Reads and deserializes log entries from a file.
@@ -225,14 +250,19 @@ mod tests {
 
         log_several_log_entries(&log_entries, output_path).expect("Failed to log generation");
 
-        // Read the file and verify the content
-        let mut file = File::open(output_path).expect("Failed to open temp file");
-        let mut content = String::new();
-        file.read_to_string(&mut content)
-            .expect("Failed to read temp file");
+        // Read the file line by line and parse each line
+        let file = File::open(output_path).expect("Failed to open temp file");
+        let reader = BufReader::new(file);
+        let mut logged_entries = Vec::new();
 
-        let logged_entries: Vec<LogEntry> =
-            serde_json::from_str(&content.trim()).expect("Failed to deserialize log entries");
+        for line in reader.lines() {
+            let line = line.expect("Failed to read line");
+            if !line.trim().is_empty() {
+                let entry: LogEntry = serde_json::from_str(&line).expect("Failed to parse entry");
+                logged_entries.push(entry);
+            }
+        }
+
         assert_eq!(logged_entries, log_entries);
     }
 
