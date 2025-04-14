@@ -37,13 +37,13 @@ impl Game {
         }
     }
 
-    fn current_pawn(&self) -> &Pawn {
+    pub fn current_pawn(&self) -> &Pawn {
         &self.pawns[self.current_pawn]
     }
     fn current_pawn_mut(&mut self) -> &mut Pawn {
         &mut self.pawns[self.current_pawn]
     }
-    fn other_pawn(&self) -> &Pawn {
+    pub fn other_pawn(&self) -> &Pawn {
         &self.pawns[(self.current_pawn + 1) % NUMBER_OF_PLAYERS]
     }
     fn set_current_pawn_next(&mut self) {

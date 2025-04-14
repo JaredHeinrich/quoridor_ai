@@ -31,35 +31,33 @@ use quoridor::wall::Orientation;
 /// # Returns
 /// A 147x1 Matrix containing the encoded board state
 pub fn encode_board(game: &Game) -> Result<Matrix> {
-    let player_perspective = game.current_pawn;
     let board_size = game.board_size as usize;
     let wall_grid_size = board_size - 1;
-    let total_size = board_size * board_size + wall_grid_size * wall_grid_size + 2;
+    let input_layer_size = board_size * board_size + wall_grid_size * wall_grid_size + 2;
 
-    let mut values = Vec::with_capacity(total_size);
+    let mut values = Vec::with_capacity(input_layer_size);
 
     // Encode pawn positions (81 values for 9x9 board)
-    encode_pawn_positions(game, player_perspective, &mut values)?;
+    encode_pawn_positions(game, &mut values)?;
 
     // Encode wall positions (64 values for 8x8 wall grid)
-    encode_wall_positions(game, player_perspective, &mut values)?;
+    encode_wall_positions(game, &mut values)?;
 
     // Encode wall counts (2 values)
-    encode_wall_counts(game, player_perspective, &mut values);
+    encode_wall_counts(game, &mut values);
 
     // Create matrix (column vector)
-    Matrix::new(total_size, 1, values)
+    Matrix::new(input_layer_size, 1, values)
 }
 
 /// Encodes pawn positions from the perspective of the given player
 fn encode_pawn_positions(
     game: &Game,
-    player_perspective: usize,
     values: &mut Vec<f64>,
 ) -> Result<()> {
     let board_size = game.board_size as usize;
-    let own_pawn = &game.pawns[player_perspective];
-    let opponent_pawn = &game.pawns[1 - player_perspective];
+    let own_pawn = game.current_pawn();
+    let opponent_pawn = game.other_pawn();
 
     // Initialize all positions to 0.0 (empty)
     let mut board = vec![vec![0.0; board_size]; board_size];
@@ -73,15 +71,15 @@ fn encode_pawn_positions(
 
     // Transform coordinates based on player_perspective
     let (own_x_transformed, own_y_transformed) =
-        transform_coordinates(own_x, own_y, player_perspective, board_size);
+        transform_coordinates(own_x, own_y, game.current_pawn, board_size);
     let (opp_x_transformed, opp_y_transformed) =
-        transform_coordinates(opp_x, opp_y, player_perspective, board_size);
+        transform_coordinates(opp_x, opp_y, game.current_pawn, board_size);
 
     // Set pawn positions in transformed coordinates rust syntax [row][col]
     board[own_y_transformed][own_x_transformed] = 1.0; // Own pawn is 1.0
     board[opp_y_transformed][opp_x_transformed] = -1.0; // Opponent pawn is -1.0
 
-    // Flatten the 2D board into a 1D vector, row by row
+    // Flatten the 2D board into a 1D vector, Add the board values row by row
     for row in board {
         values.extend(row);
     }
@@ -91,7 +89,6 @@ fn encode_pawn_positions(
 /// Encodes wall positions from the perspective of the given player
 fn encode_wall_positions(
     game: &Game,
-    player_perspective: usize,
     values: &mut Vec<f64>,
 ) -> Result<()> {
     let wall_grid_size = game.board_size as usize - 1;
@@ -119,7 +116,7 @@ fn encode_wall_positions(
         // 0.7->7.0 | 1.7->6.0 | 2.7->5.0 | 3.7->4.0 | 4.7->3.0 | 5.7->2.0 | 6.7->1.0 | 7.7->0.0 | 8.7
         // 0.8      | 1.8      | 2.8      | 3.8      | 4.8      | 5.8      | 6.8      | 7.8      | 8.8
         let (x_transformed, y_transformed) =
-            transform_coordinates(x, y, player_perspective, wall_grid_size);
+            transform_coordinates(x, y, game.current_pawn, wall_grid_size);
 
         wall_grid[y_transformed][x_transformed] = match wall.orientation {
             Orientation::Horizontal => 1.0, // Horizontal wall is 1.0
@@ -135,9 +132,9 @@ fn encode_wall_positions(
 }
 
 /// Encodes the number of walls each player has left
-fn encode_wall_counts(game: &Game, player_perspective: usize, values: &mut Vec<f64>) {
-    let own_walls = game.pawns[player_perspective].number_of_available_walls as f64;
-    let opponent_walls = game.pawns[1 - player_perspective].number_of_available_walls as f64;
+fn encode_wall_counts(game: &Game, values: &mut Vec<f64>) {
+    let own_walls = game.current_pawn().number_of_available_walls as f64;
+    let opponent_walls = game.other_pawn().number_of_available_walls as f64;
 
     values.push(own_walls);
     values.push(opponent_walls);
@@ -159,11 +156,6 @@ fn transform_coordinates(
         // Player 1 perspective: flip
         (board_size - 1 - x, board_size - 1 - y)
     }
-}
-
-/// Encodes a Quoridor game state from the current player's perspective
-pub fn encode_from_current_player(game: &Game) -> Result<Matrix> {
-    encode_board(game)
 }
 
 /// Calculates the Manhattan distance from a pawn to its goal
@@ -317,22 +309,4 @@ mod tests {
         assert_eq!(dist_p1_custom, 3); // Player 1 is 3 steps from goal
     }
 
-    #[test]
-    fn test_encode_from_current_player() {
-        let mut game = Game::new(9, 10);
-
-        game.walls
-            .push(Wall::new(Vector::new(0, 2), Orientation::Horizontal));
-
-        // Initially player 0's turn
-        let encoded_p0 = encode_from_current_player(&game).unwrap();
-
-        // Switch to player 1
-        game.current_pawn = 1;
-
-        let encoded_p1 = encode_from_current_player(&game).unwrap();
-
-        // The encodings should be different
-        assert_ne!(encoded_p0.values, encoded_p1.values);
-    }
 }
