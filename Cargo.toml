@@ -6,4 +6,5 @@ members = [ "evolution_training",
     "neural_network",
     "quoridor", "render",
     "neural_network_logger",
+    "neural_network_logger", "play_ai_game",
 ]

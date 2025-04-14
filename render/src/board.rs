@@ -3,7 +3,7 @@ use super::tile::spawn_tile;
 use bevy::prelude::*;
 use quoridor::vector::Vector;
 
-fn spawn_board(
+pub fn spawn_board(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<ColorMaterial>>,
