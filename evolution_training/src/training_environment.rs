@@ -1,8 +1,8 @@
 use anyhow::Result;
+use plotters::prelude::*;
 use rayon::prelude::*;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
-use plotters::prelude::*;
 
 use crate::evolution::generation::Generation;
 use crate::evolution::selection::select_next_generation;
@@ -93,13 +93,11 @@ impl TrainingEnvironment {
             self.log_generation_results()?;
 
             let generation_duration = gen_start_time.elapsed();
-            
+
             // Store generation time for plotting (in seconds)
-            self.generation_time_history.push((
-                self.generation_number,
-                generation_duration.as_secs_f64()
-            ));
-            
+            self.generation_time_history
+                .push((self.generation_number, generation_duration.as_secs_f64()));
+
             println!(
                 "Generation {} completed in {:.2?}",
                 self.generation_number, generation_duration
@@ -118,10 +116,10 @@ impl TrainingEnvironment {
             total_duration
         );
         println!("Results saved to {}", self.settings.log_file);
-        
+
         // Plot fitness history
         self.plot_fitness_history()?;
-        
+
         // Plot generation times
         self.plot_generation_times()?;
 
@@ -153,8 +151,12 @@ impl TrainingEnvironment {
         println!("  Min fitness: {:.2}", min_fitness);
 
         // Update fitness history
-        self.fitness_history
-            .push((self.generation_number, top_fitness, avg_fitness, min_fitness));
+        self.fitness_history.push((
+            self.generation_number,
+            top_fitness,
+            avg_fitness,
+            min_fitness,
+        ));
 
         Ok(())
     }
@@ -282,7 +284,8 @@ impl TrainingEnvironment {
             } else {
                 neural_network1
             };
-            let action: GameResult = self.nn_move(current_agent_nn, &mut game, move_counter, output_activation);
+            let action: GameResult =
+                self.nn_move(current_agent_nn, &mut game, move_counter, output_activation);
             // If the game is won, break out of the loop
             if let GameResult::Win(moves_to_win) = action {
                 moves_played = moves_to_win;
@@ -292,14 +295,14 @@ impl TrainingEnvironment {
                     generation_index: usize::MAX,
                     placement: usize::MAX,
                     neural_network: neural_network0.clone(),
-                    fitness: None
+                    fitness: None,
                 };
                 let _result = log_single_log_entry(&log_entry, &self.settings.log_file);
                 let log_entry = LogEntry {
                     generation_index: usize::MAX,
                     placement: current_player_index, //use current_player_index to identify who had invalid moves
                     neural_network: neural_network1.clone(),
-                    fitness: None
+                    fitness: None,
                 };
                 let _result = log_single_log_entry(&log_entry, &self.settings.log_file);
 
@@ -322,7 +325,6 @@ impl TrainingEnvironment {
         let nn_output = neural_network.feed_forward(game_state.unwrap(), output_activation);
         let game_move = decode_move(&nn_output.unwrap(), &game, &self.settings);
 
-        
         // Execute move
         if let Err(_) = &game.make_move(game_move.unwrap()) {
             // If move execution failed, we'll end the game and consider it a draw
@@ -338,7 +340,6 @@ impl TrainingEnvironment {
         } else {
             return GameResult::Draw;
         }
-
     }
 
     /// Check if the game is over (win or max moves reached)
@@ -411,7 +412,10 @@ impl TrainingEnvironment {
             return Ok(());
         }
 
-        let output_file = format!("{}_fitness_plot.png", self.settings.log_file.replace(".json", ""));
+        let output_file = format!(
+            "{}_fitness_plot.png",
+            self.settings.log_file.replace(".json", "")
+        );
         println!("Generating fitness plot at: {}", output_file);
 
         // Create the plot
@@ -419,18 +423,20 @@ impl TrainingEnvironment {
         root.fill(&WHITE)?;
 
         // Find min and max values for y-axis
-        let min_y = self.fitness_history
+        let min_y = self
+            .fitness_history
             .iter()
             .map(|(_gen, _max, _avg, min)| *min)
             .fold(f64::INFINITY, |a, b| a.min(b))
             .min(0.0);
-        
-        let max_y = self.fitness_history
+
+        let max_y = self
+            .fitness_history
             .iter()
             .map(|(_gen, max, _avg, _min)| *max)
             .fold(f64::NEG_INFINITY, |a, b| a.max(b))
             * 1.1; // Add 10% margin
-        
+
         let max_gen = self.fitness_history.len() as u32;
 
         let mut chart = ChartBuilder::on(&root)
@@ -440,44 +446,55 @@ impl TrainingEnvironment {
             .y_label_area_size(60)
             .build_cartesian_2d(0u32..max_gen, min_y..max_y)?;
 
-        chart.configure_mesh()
+        chart
+            .configure_mesh()
             .x_desc("Generation")
             .y_desc("Fitness")
             .axis_desc_style(("sans-serif", 15))
             .draw()?;
 
         // Plot max fitness
-        chart.draw_series(LineSeries::new(
-            self.fitness_history.iter().map(|(gen, max, _avg, _min)| (*gen as u32, *max)),
-            &RED,
-        ))?
-        .label("Max Fitness")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
+        chart
+            .draw_series(LineSeries::new(
+                self.fitness_history
+                    .iter()
+                    .map(|(gen, max, _avg, _min)| (*gen as u32, *max)),
+                &RED,
+            ))?
+            .label("Max Fitness")
+            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
 
         // Plot average fitness
-        chart.draw_series(LineSeries::new(
-            self.fitness_history.iter().map(|(gen, _max, avg, _min)| (*gen as u32, *avg)),
-            &GREEN,
-        ))?
-        .label("Avg Fitness")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREEN));
+        chart
+            .draw_series(LineSeries::new(
+                self.fitness_history
+                    .iter()
+                    .map(|(gen, _max, avg, _min)| (*gen as u32, *avg)),
+                &GREEN,
+            ))?
+            .label("Avg Fitness")
+            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREEN));
 
         // Plot min fitness
-        chart.draw_series(LineSeries::new(
-            self.fitness_history.iter().map(|(gen, _max, _avg, min)| (*gen as u32, *min)),
-            &BLUE,
-        ))?
-        .label("Min Fitness")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLUE));
+        chart
+            .draw_series(LineSeries::new(
+                self.fitness_history
+                    .iter()
+                    .map(|(gen, _max, _avg, min)| (*gen as u32, *min)),
+                &BLUE,
+            ))?
+            .label("Min Fitness")
+            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLUE));
 
-        chart.configure_series_labels()
+        chart
+            .configure_series_labels()
             .background_style(&WHITE.mix(0.8))
             .border_style(&BLACK)
             .draw()?;
 
         root.present()?;
         println!("Fitness plot generated at: {}", output_file);
-        
+
         Ok(())
     }
 
@@ -487,7 +504,10 @@ impl TrainingEnvironment {
             return Ok(());
         }
 
-        let output_file = format!("{}_time_plot.png", self.settings.log_file.replace(".json", ""));
+        let output_file = format!(
+            "{}_time_plot.png",
+            self.settings.log_file.replace(".json", "")
+        );
         println!("Generating generation time plot at: {}", output_file);
 
         // Create the plot
@@ -495,13 +515,14 @@ impl TrainingEnvironment {
         root.fill(&WHITE)?;
 
         // Find min and max values for y-axis
-        let min_y = 0.0;  // Time can't be negative
-        let max_y = self.generation_time_history
+        let min_y = 0.0; // Time can't be negative
+        let max_y = self
+            .generation_time_history
             .iter()
             .map(|(_gen, time)| *time)
             .fold(f64::NEG_INFINITY, |a, b| a.max(b))
             * 1.1; // Add 10% margin
-        
+
         let max_gen = self.generation_time_history.len() as u32;
 
         let mut chart = ChartBuilder::on(&root)
@@ -511,47 +532,51 @@ impl TrainingEnvironment {
             .y_label_area_size(60)
             .build_cartesian_2d(0u32..max_gen, min_y..max_y)?;
 
-        chart.configure_mesh()
+        chart
+            .configure_mesh()
             .x_desc("Generation")
             .y_desc("Time (seconds)")
             .axis_desc_style(("sans-serif", 15))
             .draw()?;
 
         // Plot generation time
-        chart.draw_series(LineSeries::new(
-            self.generation_time_history.iter().map(|(gen, time)| (*gen as u32, *time)),
-            &BLUE,
-        ))?
-        .label("Generation Time (s)")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLUE));
+        chart
+            .draw_series(LineSeries::new(
+                self.generation_time_history
+                    .iter()
+                    .map(|(gen, time)| (*gen as u32, *time)),
+                &BLUE,
+            ))?
+            .label("Generation Time (s)")
+            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLUE));
 
         // Add a trend line (moving average) if we have enough data points
         if self.generation_time_history.len() >= 3 {
             // Calculate moving average (window size of 3)
             let mut trend_data = Vec::new();
             for i in 1..self.generation_time_history.len() - 1 {
-                let avg_time = (self.generation_time_history[i-1].1 + 
-                               self.generation_time_history[i].1 + 
-                               self.generation_time_history[i+1].1) / 3.0;
+                let avg_time = (self.generation_time_history[i - 1].1
+                    + self.generation_time_history[i].1
+                    + self.generation_time_history[i + 1].1)
+                    / 3.0;
                 trend_data.push((self.generation_time_history[i].0 as u32, avg_time));
             }
-            
-            chart.draw_series(LineSeries::new(
-                trend_data,
-                &RED.mix(0.5),
-            ))?
-            .label("Moving Average (3)")
-            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED.mix(0.5)));
+
+            chart
+                .draw_series(LineSeries::new(trend_data, &RED.mix(0.5)))?
+                .label("Moving Average (3)")
+                .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED.mix(0.5)));
         }
 
-        chart.configure_series_labels()
+        chart
+            .configure_series_labels()
             .background_style(&WHITE.mix(0.8))
             .border_style(&BLACK)
             .draw()?;
 
         root.present()?;
         println!("Generation time plot generated at: {}", output_file);
-        
+
         Ok(())
     }
 }

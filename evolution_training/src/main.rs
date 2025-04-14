@@ -22,32 +22,38 @@ fn run() -> anyhow::Result<()> {
         .with_mutation_rate_decrease(0.001)
         .with_reward_coefficients(
             RewardFunction::Symmetric,
-            100.0,            // win reward
-            -10.0,             // own distance punishment
-            5.0,               // other distance reward
-            2.0,               // per saved turn reward
+            100.0, // win reward
+            -10.0, // own distance punishment
+            5.0,   // other distance reward
+            2.0,   // per saved turn reward
         )
         .with_max_moves_per_player(50)
         .with_deterministic_play(true)
         .with_generation_count(100);
-    
+
     // Validate settings
     settings.validate()?;
-    
+
     println!("Starting Quoridor AI evolutionary training");
     println!("Configured with:");
     println!("  Population size: {}", settings.generation_size);
-    println!("  Neural network: {:?}", settings.neural_network_layer_structure);
+    println!(
+        "  Neural network: {:?}",
+        settings.neural_network_layer_structure
+    );
     println!("  Generations: {}", settings.number_of_generations);
     println!("  Survival rate: {:.2}", settings.survival_rate);
-    println!("  Mutation rate: {:.2} (decrease: {:.3})", settings.mutation_rate, settings.mutation_rate_decrease);
-    
+    println!(
+        "  Mutation rate: {:.2} (decrease: {:.3})",
+        settings.mutation_rate, settings.mutation_rate_decrease
+    );
+
     // Create and run the training environment
     let mut environment = TrainingEnvironment::new(settings);
     environment.run_evolution()?;
-    
+
     println!("Training completed successfully!");
-    
+
     Ok(())
 }
 
