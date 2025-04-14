@@ -254,7 +254,7 @@ impl TrainingEnvironment {
             let nn_output = current_agent_nn.feed_forward(game_state, output_activation)?;
             let game_move = decode_move(&nn_output, &game, &self.settings)?;
 
-            print!("pre current pawn: {}", game.current_pawn);
+            
             // Execute move
             if let Err(_) = game.make_move(game_move) {
                 // If move execution failed, we'll end the game and consider it a draw
@@ -262,7 +262,6 @@ impl TrainingEnvironment {
                 print!("Invalid move executed, move_decoder malfunctioning, ending game.");
                 break;
             }
-            print!("current pawn: {}", game.current_pawn);
 
             // Check if game is over// Check for win condition or max moves
             if self.is_win(&game) {

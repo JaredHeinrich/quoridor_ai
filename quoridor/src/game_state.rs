@@ -44,7 +44,7 @@ impl Game {
         &mut self.pawns[self.current_pawn]
     }
     fn other_pawn(&self) -> &Pawn {
-        &self.pawns[self.current_pawn + 1 % NUMBER_OF_PLAYERS]
+        &self.pawns[(self.current_pawn + 1) % NUMBER_OF_PLAYERS]
     }
     fn set_current_pawn_next(&mut self) {
         self.current_pawn = (self.current_pawn + 1) % NUMBER_OF_PLAYERS;

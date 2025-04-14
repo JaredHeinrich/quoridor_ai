@@ -236,8 +236,6 @@ mod tests {
             Some(mock_read_specific_lines),
         )?;
 
-        print!("Survivor_count: {}", settings.survivor_count());
-
         // Check that the correct number of agents were reactivated
         let reactivated_count = new_gen
             .agents
