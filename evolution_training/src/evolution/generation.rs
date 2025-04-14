@@ -5,7 +5,7 @@ use crate::evolution::agent::Agent;
 use crate::settings::Settings;
 
 /// Represents a generation of neural network agents for evolutionary training
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Generation {
     pub agents: Vec<Agent>,
     pub generation_index: usize,

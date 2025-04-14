@@ -1,4 +1,4 @@
-use neural_network_logger::{AgentLike, GenerationLike};
+use neural_network_logger::traits::{AgentLike, GenerationLike};
 use crate::evolution::agent::Agent;
 use crate::evolution::generation::Generation;
 use anyhow::Result;
@@ -10,7 +10,7 @@ impl AgentLike for Agent {
     }
     
     fn fitness(&self) -> Option<f64> {
-        self.fitness
+        Some(self.fitness)
     }
 }
 
@@ -29,9 +29,7 @@ impl GenerationLike for Generation {
     fn sort_by_fitness(&mut self) -> Result<()> {
         // Implement sorting directly to avoid name conflict
         self.agents.sort_by(|a, b| {
-            let a_fitness = a.fitness.unwrap_or(0.0);
-            let b_fitness = b.fitness.unwrap_or(0.0);
-            b_fitness.partial_cmp(&a_fitness).unwrap()
+            b.fitness.partial_cmp(&a.fitness).unwrap()
         });
         
         Ok(())
