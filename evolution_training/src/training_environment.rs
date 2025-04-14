@@ -2,7 +2,6 @@ use anyhow::Result;
 use rayon::prelude::*;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
-use plotters::prelude::*;
 
 use crate::evolution::generation::Generation;
 use crate::evolution::selection::select_next_generation;
@@ -34,6 +33,8 @@ pub struct TrainingEnvironment {
     pub fitness_history: Vec<(usize, f64, f64, f64)>,
     /// Generation time history for plotting (generation, time_in_seconds)
     pub generation_time_history: Vec<(usize, f64)>,
+    /// Diversity history for plotting (generation, diversity_measure)
+    pub diversity_history: Vec<(usize, f64)>,
 }
 
 impl TrainingEnvironment {
@@ -46,6 +47,7 @@ impl TrainingEnvironment {
             generation_number: 0,
             fitness_history: Vec::new(),
             generation_time_history: Vec::new(),
+            diversity_history: Vec::new(),
         }
     }
 
@@ -55,6 +57,7 @@ impl TrainingEnvironment {
         self.current_generation = Generation::create_initial(&self.settings)?;
         self.fitness_history.clear();
         self.generation_time_history.clear();
+        self.diversity_history.clear();
         println!(
             "Initialized generation 0 with {} agents",
             self.settings.generation_size
@@ -119,11 +122,10 @@ impl TrainingEnvironment {
         );
         println!("Results saved to {}", self.settings.log_file);
         
-        // Plot fitness history
-        self.plot_fitness_history()?;
-        
-        // Plot generation times
-        self.plot_generation_times()?;
+        // Generate plots using the visualization module
+        crate::visualization::plot_fitness_history(self)?;
+        crate::visualization::plot_generation_times(self)?;
+        crate::visualization::plot_diversity_history(self)?;
 
         Ok(())
     }
@@ -155,6 +157,12 @@ impl TrainingEnvironment {
         // Update fitness history
         self.fitness_history
             .push((self.generation_number, top_fitness, avg_fitness, min_fitness));
+        
+        // Calculate and record diversity
+        let diversity = self.calculate_generation_diversity();
+        self.diversity_history.push((self.generation_number, diversity));
+        
+        println!("  Genetic diversity: {:.4}", diversity);
 
         Ok(())
     }
@@ -364,6 +372,69 @@ impl TrainingEnvironment {
         }
     }
 
+    /// Calculate the genetic diversity of the current generation
+    fn calculate_generation_diversity(&self) -> f64 {
+        let generation = &self.current_generation;
+        let agents = &generation.agents;
+        
+        if agents.len() <= 1 {
+            return 0.0;
+        }
+        
+        // To avoid O(n²) computation for large populations, sample pairs
+        let max_pairs = 1000;
+        let use_sampling = agents.len() * (agents.len() - 1) / 2 > max_pairs;
+        
+        let mut total_distance = 0.0;
+        let mut pair_count = 0;
+        
+        // If population is small, compute all pairwise distances
+        if !use_sampling {
+            for i in 0..agents.len() {
+                for j in (i+1)..agents.len() {
+                    if let (Some(nn1), Some(nn2)) = (
+                        generation.get_neural_network(i),
+                        generation.get_neural_network(j)
+                    ) {
+                        let distance = crate::visualization::calculate_network_distance(nn1, nn2);
+                        total_distance += distance;
+                        pair_count += 1;
+                    }
+                }
+            }
+        } else {
+            // For large populations, use random sampling
+            use rand::prelude::*;
+            let mut rng = rand::rng();
+            
+            let mut pairs_sampled = 0;
+            while pairs_sampled < max_pairs {
+                let i = rng.random_range(0..agents.len());
+                let j = rng.random_range(0..agents.len());
+                
+                // Ensure we don't compare an agent with itself
+                if i != j {
+                    if let (Some(nn1), Some(nn2)) = (
+                        generation.get_neural_network(i),
+                        generation.get_neural_network(j)
+                    ) {
+                        let distance = crate::visualization::calculate_network_distance(nn1, nn2);
+                        total_distance += distance;
+                        pair_count += 1;
+                    }
+                }
+                
+                pairs_sampled += 1;
+            }
+        }
+        
+        if pair_count > 0 {
+            total_distance / pair_count as f64
+        } else {
+            0.0
+        }
+    }
+
     /// Evolve the population to create the next generation
     pub fn evolve_population(&mut self) -> Result<()> {
         println!(
@@ -405,155 +476,6 @@ impl TrainingEnvironment {
         Ok(())
     }
 
-    pub fn plot_fitness_history(&self) -> Result<()> {
-        if self.fitness_history.is_empty() {
-            println!("No fitness data to plot");
-            return Ok(());
-        }
-
-        let output_file = format!("{}_fitness_plot.png", self.settings.log_file.replace(".json", ""));
-        println!("Generating fitness plot at: {}", output_file);
-
-        // Create the plot
-        let root = BitMapBackend::new(&output_file, (1024, 768)).into_drawing_area();
-        root.fill(&WHITE)?;
-
-        // Find min and max values for y-axis
-        let min_y = self.fitness_history
-            .iter()
-            .map(|(_gen, _max, _avg, min)| *min)
-            .fold(f64::INFINITY, |a, b| a.min(b))
-            .min(0.0);
-        
-        let max_y = self.fitness_history
-            .iter()
-            .map(|(_gen, max, _avg, _min)| *max)
-            .fold(f64::NEG_INFINITY, |a, b| a.max(b))
-            * 1.1; // Add 10% margin
-        
-        let max_gen = self.fitness_history.len() as u32;
-
-        let mut chart = ChartBuilder::on(&root)
-            .caption("Fitness over Generations", ("sans-serif", 30).into_font())
-            .margin(10)
-            .x_label_area_size(40)
-            .y_label_area_size(60)
-            .build_cartesian_2d(0u32..max_gen, min_y..max_y)?;
-
-        chart.configure_mesh()
-            .x_desc("Generation")
-            .y_desc("Fitness")
-            .axis_desc_style(("sans-serif", 15))
-            .draw()?;
-
-        // Plot max fitness
-        chart.draw_series(LineSeries::new(
-            self.fitness_history.iter().map(|(gen, max, _avg, _min)| (*gen as u32, *max)),
-            &RED,
-        ))?
-        .label("Max Fitness")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
-
-        // Plot average fitness
-        chart.draw_series(LineSeries::new(
-            self.fitness_history.iter().map(|(gen, _max, avg, _min)| (*gen as u32, *avg)),
-            &GREEN,
-        ))?
-        .label("Avg Fitness")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREEN));
-
-        // Plot min fitness
-        chart.draw_series(LineSeries::new(
-            self.fitness_history.iter().map(|(gen, _max, _avg, min)| (*gen as u32, *min)),
-            &BLUE,
-        ))?
-        .label("Min Fitness")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLUE));
-
-        chart.configure_series_labels()
-            .background_style(&WHITE.mix(0.8))
-            .border_style(&BLACK)
-            .draw()?;
-
-        root.present()?;
-        println!("Fitness plot generated at: {}", output_file);
-        
-        Ok(())
-    }
-
-    pub fn plot_generation_times(&self) -> Result<()> {
-        if self.generation_time_history.is_empty() {
-            println!("No generation time data to plot");
-            return Ok(());
-        }
-
-        let output_file = format!("{}_time_plot.png", self.settings.log_file.replace(".json", ""));
-        println!("Generating generation time plot at: {}", output_file);
-
-        // Create the plot
-        let root = BitMapBackend::new(&output_file, (1024, 768)).into_drawing_area();
-        root.fill(&WHITE)?;
-
-        // Find min and max values for y-axis
-        let min_y = 0.0;  // Time can't be negative
-        let max_y = self.generation_time_history
-            .iter()
-            .map(|(_gen, time)| *time)
-            .fold(f64::NEG_INFINITY, |a, b| a.max(b))
-            * 1.1; // Add 10% margin
-        
-        let max_gen = self.generation_time_history.len() as u32;
-
-        let mut chart = ChartBuilder::on(&root)
-            .caption("Generation Time", ("sans-serif", 30).into_font())
-            .margin(10)
-            .x_label_area_size(40)
-            .y_label_area_size(60)
-            .build_cartesian_2d(0u32..max_gen, min_y..max_y)?;
-
-        chart.configure_mesh()
-            .x_desc("Generation")
-            .y_desc("Time (seconds)")
-            .axis_desc_style(("sans-serif", 15))
-            .draw()?;
-
-        // Plot generation time
-        chart.draw_series(LineSeries::new(
-            self.generation_time_history.iter().map(|(gen, time)| (*gen as u32, *time)),
-            &BLUE,
-        ))?
-        .label("Generation Time (s)")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLUE));
-
-        // Add a trend line (moving average) if we have enough data points
-        if self.generation_time_history.len() >= 3 {
-            // Calculate moving average (window size of 3)
-            let mut trend_data = Vec::new();
-            for i in 1..self.generation_time_history.len() - 1 {
-                let avg_time = (self.generation_time_history[i-1].1 + 
-                               self.generation_time_history[i].1 + 
-                               self.generation_time_history[i+1].1) / 3.0;
-                trend_data.push((self.generation_time_history[i].0 as u32, avg_time));
-            }
-            
-            chart.draw_series(LineSeries::new(
-                trend_data,
-                &RED.mix(0.5),
-            ))?
-            .label("Moving Average (3)")
-            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED.mix(0.5)));
-        }
-
-        chart.configure_series_labels()
-            .background_style(&WHITE.mix(0.8))
-            .border_style(&BLACK)
-            .draw()?;
-
-        root.present()?;
-        println!("Generation time plot generated at: {}", output_file);
-        
-        Ok(())
-    }
 }
 
 #[cfg(test)]

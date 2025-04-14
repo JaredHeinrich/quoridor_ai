@@ -4,6 +4,7 @@ pub mod game_adapter;
 pub mod logging;
 pub mod settings;
 pub mod training_environment;
+pub mod visualization;
 
 use std::process;
 
@@ -21,7 +22,7 @@ fn run() -> anyhow::Result<()> {
         .with_mutation_rate(0.1)
         .with_mutation_rate_decrease(0.001)
         .with_reward_coefficients(
-            RewardFunction::Symmetric,
+            RewardFunction::Simple,
             100.0,            // win reward
             -10.0,             // own distance punishment
             5.0,               // other distance reward
