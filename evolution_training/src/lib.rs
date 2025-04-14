@@ -5,3 +5,4 @@ pub mod logging;
 pub mod settings;
 pub mod training_environment;
 pub mod visualization;
+pub mod benchmark;

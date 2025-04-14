@@ -13,6 +13,7 @@ use neural_network::neural_network::{NeuralNetwork, OutputActivation};
 use neural_network_logger::logger::{log_generation, log_single_log_entry};
 use neural_network_logger::models::LogEntry;
 use quoridor::game_state::Game;
+use crate::benchmark::{RandomAgent, SimpleForwardAgent, play_against_benchmark};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum GameResult {
@@ -35,6 +36,8 @@ pub struct TrainingEnvironment {
     pub generation_time_history: Vec<(usize, f64)>,
     /// Diversity history for plotting (generation, diversity_measure)
     pub diversity_history: Vec<(usize, f64)>,
+    /// Benchmark history for plotting (generation, random_score, simple_score)
+    pub benchmark_history: Vec<(usize, f64, f64)>,
 }
 
 impl TrainingEnvironment {
@@ -48,6 +51,7 @@ impl TrainingEnvironment {
             fitness_history: Vec::new(),
             generation_time_history: Vec::new(),
             diversity_history: Vec::new(),
+            benchmark_history: Vec::new(),
         }
     }
 
@@ -58,6 +62,7 @@ impl TrainingEnvironment {
         self.fitness_history.clear();
         self.generation_time_history.clear();
         self.diversity_history.clear();
+        self.benchmark_history.clear();
         println!(
             "Initialized generation 0 with {} agents",
             self.settings.generation_size
@@ -126,6 +131,7 @@ impl TrainingEnvironment {
         crate::visualization::plot_fitness_history(self)?;
         crate::visualization::plot_generation_times(self)?;
         crate::visualization::plot_diversity_history(self)?;
+        crate::visualization::plot_benchmark_history(self)?;
 
         Ok(())
     }
@@ -163,6 +169,10 @@ impl TrainingEnvironment {
         self.diversity_history.push((self.generation_number, diversity));
         
         println!("  Genetic diversity: {:.4}", diversity);
+        
+        // Evaluate against benchmarks
+        let (random_score, simple_score) = self.evaluate_against_benchmarks()?;
+        self.benchmark_history.push((self.generation_number, random_score, simple_score));
 
         Ok(())
     }
@@ -476,6 +486,56 @@ impl TrainingEnvironment {
         Ok(())
     }
 
+    /// Evaluate the top agent against benchmark agents
+    pub fn evaluate_against_benchmarks(&self) -> Result<(f64, f64)> {
+        // Create benchmark agents
+        let random_agent = RandomAgent::new();
+        let simple_agent = SimpleForwardAgent::new();
+        
+        // Get the top neural network from current generation
+        if self.current_generation.agents.is_empty() {
+            return Ok((0.0, 0.0));
+        }
+        
+        // Sort and get top agent
+        let mut sorted_generation = self.current_generation.clone();
+        sorted_generation.sort_by_fitness()?;
+        
+        let top_nn = sorted_generation.get_neural_network(0)
+            .ok_or_else(|| anyhow::anyhow!("Failed to get top neural network"))?;
+        
+        // Play multiple games against benchmarks for more reliable results
+        let num_games = 1;
+        let mut random_score = 0.0;
+        let mut simple_score = 0.0;
+        
+        println!("Evaluating top agent against benchmarks...");
+        
+        // Play against random agent
+        for i in 0..num_games {
+            let neural_network_plays_first = i % 2 == 0; // Alternate first player
+            let (nn_score, _) = play_against_benchmark(
+                top_nn, &random_agent, &self.settings, neural_network_plays_first
+            )?;
+            random_score += nn_score;
+        }
+        random_score /= num_games as f64;
+        
+        // Play against simple forward agent
+        for i in 0..num_games {
+            let neural_network_plays_first = i % 2 == 0; // Alternate first player
+            let (nn_score, _) = play_against_benchmark(
+                top_nn, &simple_agent, &self.settings, neural_network_plays_first
+            )?;
+            simple_score += nn_score;
+        }
+        simple_score /= num_games as f64;
+        
+        println!("  vs Random Agent: {:.2}", random_score);
+        println!("  vs Forward Agent: {:.2}", simple_score);
+        
+        Ok((random_score, simple_score))
+    }
 }
 
 #[cfg(test)]

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use plotters::prelude::*;
-use plotters::style::full_palette::PURPLE;  // Add this line to import PURPLE
+use plotters::style::full_palette::{PURPLE, ORANGE};  // Updated to import ORANGE and PURPLE
 use crate::training_environment::TrainingEnvironment;
 use neural_network::neural_network::NeuralNetwork;
 
@@ -272,6 +272,74 @@ pub fn plot_diversity_history(environment: &TrainingEnvironment) -> Result<()> {
 
     root.present()?;
     println!("Diversity plot generated at: {}", output_file);
+    
+    Ok(())
+}
+
+/// Plot benchmark performance over generations
+pub fn plot_benchmark_history(environment: &TrainingEnvironment) -> Result<()> {
+    if environment.benchmark_history.is_empty() {
+        println!("No benchmark data to plot");
+        return Ok(());
+    }
+
+    let output_file = format!("{}_benchmark_plot.png", environment.settings.log_file.replace(".json", ""));
+    println!("Generating benchmark performance plot at: {}", output_file);
+
+    // Create the plot
+    let root = BitMapBackend::new(&output_file, (1024, 768)).into_drawing_area();
+    root.fill(&WHITE)?;
+
+    // Find y-axis range (0.0 to 1.0 is reasonable for win rates)
+    let min_y = 0.0;
+    let max_y = 1.0;
+    
+    let max_gen = environment.benchmark_history.len() as u32;
+
+    let mut chart = ChartBuilder::on(&root)
+        .caption("Benchmark Performance", ("sans-serif", 30).into_font())
+        .margin(10)
+        .x_label_area_size(40)
+        .y_label_area_size(60)
+        .build_cartesian_2d(0u32..max_gen, min_y..max_y)?;
+
+    chart.configure_mesh()
+        .x_desc("Generation")
+        .y_desc("Win Rate")
+        .axis_desc_style(("sans-serif", 15))
+        .draw()?;
+
+    // Plot scores against random agent
+    chart.draw_series(LineSeries::new(
+        environment.benchmark_history.iter().map(|(gen, random, _)| (*gen as u32, *random)),
+        &BLUE,
+    ))?
+    .label("vs Random Agent")
+    .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLUE));
+
+    // Plot scores against simple agent
+    chart.draw_series(LineSeries::new(
+        environment.benchmark_history.iter().map(|(gen, _, simple)| (*gen as u32, *simple)),
+        &ORANGE,
+    ))?
+    .label("vs Forward Agent")
+    .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &ORANGE));
+    
+    // Add a reference line at 0.5 (break-even)
+    chart.draw_series(LineSeries::new(
+        vec![(0, 0.5), (max_gen, 0.5)],
+        &BLACK.mix(0.3),
+    ))?
+    .label("Break-even")
+    .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLACK.mix(0.3)));
+
+    chart.configure_series_labels()
+        .background_style(&WHITE.mix(0.8))
+        .border_style(&BLACK)
+        .draw()?;
+
+    root.present()?;
+    println!("Benchmark plot generated at: {}", output_file);
     
     Ok(())
 }
