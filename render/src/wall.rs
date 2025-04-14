@@ -5,9 +5,9 @@ use quoridor::wall::Orientation;
 use super::constants::*;
 
 #[derive(Component)]
-struct Wall;
+pub struct Wall;
 
-fn spawn_wall(
+pub fn spawn_wall(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<ColorMaterial>>,
@@ -31,4 +31,10 @@ fn calculate_screen_pos(wall_pos: Vector) -> Vec2 {
     let screen_x: f32 = (wall_pos.x - HALF_TILE_GRID_SIZE) as f32 * TOTAL_WIDTH + OFFSET;
     let screen_y: f32 = (HALF_TILE_GRID_SIZE - wall_pos.y) as f32 * TOTAL_WIDTH - OFFSET;
     Vec2::new(screen_x, screen_y)
+}
+
+pub fn clear_walls(commands: &mut Commands, walls: &Query<Entity, With<Wall>>) {
+    for wall in walls.iter() {
+        commands.entity(wall).despawn();
+    }
 }

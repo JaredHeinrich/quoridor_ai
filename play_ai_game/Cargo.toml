@@ -1,0 +1,18 @@
+[package]
+name = "play_ai_game"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+quoridor = {path = "../quoridor/"}
+neural_network = {path = "../neural_network/"}
+neural_network_logger = {path = "../neural_network_logger/"}
+render = {path = "../render/"}
+evolution_training = {path = "../evolution_training/"}
+bevy = { version = "0.15.3" }
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3

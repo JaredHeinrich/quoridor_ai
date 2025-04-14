@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use quoridor::vector::Vector;
 
 #[derive(Component)]
-struct Pawn;
+pub struct Pawn;
 
 pub fn spawn_pawn(
     commands: &mut Commands,
@@ -19,4 +19,10 @@ pub fn spawn_pawn(
         MeshMaterial2d(materials.add(Color::from(color))),
         Transform::from_xyz(screen_pos.x, screen_pos.y, PAWN_Z),
     ));
+}
+
+pub fn clear_pawns(commands: &mut Commands, pawns: &Query<Entity, With<Pawn>>) {
+    for pawn in pawns.iter() {
+        commands.entity(pawn).despawn();
+    }
 }

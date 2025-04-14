@@ -14,7 +14,6 @@ pub enum OutputActivation {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-
 pub struct NeuralNetwork {
     pub layer_sizes: Vec<usize>,
     pub weights: Vec<Matrix>,
