@@ -10,7 +10,8 @@ use crate::game_adapter::move_decoder::decode_move;
 use crate::game_adapter::reward::{reward_simple_per_game, reward_symmetric_per_game};
 use crate::settings::Settings;
 use neural_network::neural_network::{NeuralNetwork, OutputActivation};
-use neural_network_logger::logger::log_generation;
+use neural_network_logger::logger::{log_generation, log_single_log_entry};
+use neural_network_logger::models::LogEntry;
 use quoridor::game_state::Game;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -259,6 +260,23 @@ impl TrainingEnvironment {
             // If the game is won, break out of the loop
             if let GameResult::Win(moves_to_win) = action {
                 moves_played = moves_to_win;
+                break;
+            } else if let GameResult::Invalid = action {
+                let log_entry = LogEntry {
+                    generation_index: usize::MAX,
+                    placement: usize::MAX,
+                    neural_network: neural_network0.clone(),
+                    fitness: None
+                };
+                let _result = log_single_log_entry(&log_entry, &self.settings.log_file);
+                let log_entry = LogEntry {
+                    generation_index: usize::MAX,
+                    placement: current_player_index, //use current_player_index to identify who had invalid moves
+                    neural_network: neural_network1.clone(),
+                    fitness: None
+                };
+                let _result = log_single_log_entry(&log_entry, &self.settings.log_file);
+
                 break;
             }
         }
