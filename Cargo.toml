@@ -4,6 +4,6 @@ resolver = '2'
 members = [ "evolution_training", 
     "matrix",
     "neural_network",
-    "quoridor",
+    "quoridor", "render",
     "neural_network_logger",
 ]
