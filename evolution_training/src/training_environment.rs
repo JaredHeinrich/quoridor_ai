@@ -1,5 +1,4 @@
 use anyhow::Result;
-use plotters::prelude::*;
 use rayon::prelude::*;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -125,7 +124,6 @@ impl TrainingEnvironment {
             total_duration
         );
         println!("Results saved to {}", self.settings.log_file);
-
 
         // Generate plots using the visualization module
         crate::visualization::plot_fitness_history(self)?;
@@ -546,7 +544,7 @@ impl TrainingEnvironment {
         println!("  vs Forward Agent: {:.2}", simple_score);
 
         Ok((random_score, simple_score))
-    
+    }
 }
 
 #[cfg(test)]
