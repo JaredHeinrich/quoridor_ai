@@ -1,0 +1,17 @@
+name: "Install Dependencies"
+description: "Installs libasound2-dev on Ubuntu"
+runs:
+  using: "composite"
+  steps:
+    - name: Update
+      run: sudo apt update
+      shell: bash
+    - name: Install alsa
+      run: sudo apt install -y libasound2-dev
+      shell: bash
+    - name: Install libudev
+      run: sudo apt-get install -y libudev-dev
+      shell: bash
+    - name: Install libfontconfig
+      run: sudo apt install -y libfontconfig1-dev
+      shell: bash

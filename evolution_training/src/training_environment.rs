@@ -1,4 +1,5 @@
 use anyhow::Result;
+use plotters::prelude::*;
 use rayon::prelude::*;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -125,6 +126,7 @@ impl TrainingEnvironment {
         );
         println!("Results saved to {}", self.settings.log_file);
 
+
         // Generate plots using the visualization module
         crate::visualization::plot_fitness_history(self)?;
         crate::visualization::plot_generation_times(self)?;
@@ -177,7 +179,6 @@ impl TrainingEnvironment {
         let (random_score, simple_score) = self.evaluate_against_benchmarks()?;
         self.benchmark_history
             .push((self.generation_number, random_score, simple_score));
-
         Ok(())
     }
 
@@ -333,7 +334,7 @@ impl TrainingEnvironment {
         self.calculate_rewards(&game, moves_played)
     }
 
-    fn nn_move(
+    pub fn nn_move(
         &self,
         neural_network: &NeuralNetwork,
         game: &mut Game,
@@ -545,7 +546,7 @@ impl TrainingEnvironment {
         println!("  vs Forward Agent: {:.2}", simple_score);
 
         Ok((random_score, simple_score))
-    }
+    
 }
 
 #[cfg(test)]
