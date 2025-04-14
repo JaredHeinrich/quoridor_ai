@@ -254,6 +254,7 @@ impl TrainingEnvironment {
             let nn_output = current_agent_nn.feed_forward(game_state, output_activation)?;
             let game_move = decode_move(&nn_output, &game, &self.settings)?;
 
+            print!("pre current pawn: {}", game.current_pawn);
             // Execute move
             if let Err(_) = game.make_move(game_move) {
                 // If move execution failed, we'll end the game and consider it a draw
@@ -442,8 +443,8 @@ mod tests {
         let env = TrainingEnvironment::new(settings);
 
         // Create two neural networks
-        let neural_network0 = NeuralNetwork::new(&vec![147, 100, 132])?;
-        let neural_network1 = NeuralNetwork::new(&vec![147, 100, 132])?;
+        let neural_network0 = NeuralNetwork::new(&vec![env.settings.input_layer_size, 100, env.settings.output_layer_size])?;
+        let neural_network1 = NeuralNetwork::new(&vec![env.settings.input_layer_size, 100, env.settings.output_layer_size])?;
 
         // Play a game and get rewards
         let (reward0, reward1) = env.play_single_game(&neural_network0, &neural_network1)?;
