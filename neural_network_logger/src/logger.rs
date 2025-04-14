@@ -52,7 +52,6 @@ pub fn log_several_log_entries(log_entries: &[LogEntry], output_path: &str) -> R
 
     // Create a buffer to hold all serialized entries
     let mut buffer = String::new();
-
     // Serialize each entry and add to buffer
     for entry in log_entries {
         let json = serde_json::to_string(entry)
@@ -60,7 +59,6 @@ pub fn log_several_log_entries(log_entries: &[LogEntry], output_path: &str) -> R
         buffer.push_str(&json);
         buffer.push('\n');
     }
-
     // Write all entries at once
     file.write_all(buffer.as_bytes())
         .map_err(|e| LoggerError::WriteError(output_path.to_string(), e.to_string()))?;

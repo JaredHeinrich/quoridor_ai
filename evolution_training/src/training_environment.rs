@@ -304,7 +304,6 @@ impl TrainingEnvironment {
             } else {
                 neural_network1
             };
-
             let action: GameResult =
                 self.nn_move(current_agent_nn, &mut game, move_counter, output_activation);
             // If the game is won, break out of the loop
@@ -334,7 +333,7 @@ impl TrainingEnvironment {
         self.calculate_rewards(&game, moves_played)
     }
 
-    fn nn_move(
+    pub fn nn_move(
         &self,
         neural_network: &NeuralNetwork,
         game: &mut Game,
