@@ -266,7 +266,7 @@ impl TrainingEnvironment {
         self.calculate_rewards(&game, moves_played)
     }
 
-    fn nn_move(
+    pub fn nn_move(
         &self,
         neural_network: &NeuralNetwork,
         game: &mut Game,

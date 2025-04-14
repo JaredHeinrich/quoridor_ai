@@ -8,6 +8,7 @@ quoridor = {path = "../quoridor/"}
 neural_network = {path = "../neural_network/"}
 neural_network_logger = {path = "../neural_network_logger/"}
 render = {path = "../render/"}
+evolution_training = {path = "../evolution_training/"}
 bevy = { version = "0.15.3" }
 
 [profile.dev]

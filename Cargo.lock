@@ -3242,6 +3242,7 @@ name = "play_ai_game"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "evolution_training",
  "neural_network",
  "neural_network_logger",
  "quoridor",
