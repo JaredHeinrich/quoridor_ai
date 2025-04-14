@@ -25,7 +25,7 @@ fn main() {
 
     let game_state: Game = Game::new(BOARD_SIZE, WALLS_PER_PLAYER);
     let mut ai_players: Vec<LogEntry> =
-        logger::read_specific_lines(&[1, 2], "../evolution_training/evolution_history.json")
+        logger::read_specific_lines(&[981, 982], "../evolution_training/evolution_history.json")
             .unwrap();
     let ai_players: [NeuralNetwork; 2] = [
         ai_players.pop().unwrap().neural_network,

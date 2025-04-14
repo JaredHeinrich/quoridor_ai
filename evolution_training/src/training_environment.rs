@@ -128,9 +128,8 @@ impl TrainingEnvironment {
         // Generate plots using the visualization module
         crate::visualization::plot_fitness_history(self)?;
         crate::visualization::plot_generation_times(self)?;
-        crate::visualization::plot_diversity_history(self)?;
         crate::visualization::plot_benchmark_history(self)?;
-
+        crate::visualization::plot_diversity_history(self)?;    
         Ok(())
     }
 
@@ -495,6 +494,7 @@ impl TrainingEnvironment {
 
     /// Evaluate the top agent against benchmark agents
     pub fn evaluate_against_benchmarks(&self) -> Result<(f64, f64)> {
+        let num_games = 5;
         // Create benchmark agents
         let random_agent = RandomAgent::new();
         let simple_agent = SimpleForwardAgent::new();
@@ -508,12 +508,8 @@ impl TrainingEnvironment {
         let mut sorted_generation = self.current_generation.clone();
         sorted_generation.sort_by_fitness()?;
 
-        let top_nn = sorted_generation
-            .get_neural_network(0)
-            .ok_or_else(|| anyhow::anyhow!("Failed to get top neural network"))?;
-
         // Play multiple games against benchmarks for more reliable results
-        let num_games = 1;
+        
         let mut random_score = 0.0;
         let mut simple_score = 0.0;
 
@@ -523,7 +519,7 @@ impl TrainingEnvironment {
         for i in 0..num_games {
             let neural_network_plays_first = i % 2 == 0; // Alternate first player
             let (nn_score, _) = play_against_benchmark(
-                top_nn,
+                sorted_generation.get_neural_network(i % self.settings.generation_size).unwrap(),
                 &random_agent,
                 &self.settings,
                 neural_network_plays_first,
@@ -536,7 +532,7 @@ impl TrainingEnvironment {
         for i in 0..num_games {
             let neural_network_plays_first = i % 2 == 0; // Alternate first player
             let (nn_score, _) = play_against_benchmark(
-                top_nn,
+                sorted_generation.get_neural_network(i % self.settings.generation_size).unwrap(),
                 &simple_agent,
                 &self.settings,
                 neural_network_plays_first,

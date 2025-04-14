@@ -271,8 +271,8 @@ pub fn plot_diversity_history(environment: &TrainingEnvironment) -> Result<()> {
         .y_desc("Diversity (avg pairwise distance)")
         .axis_desc_style(("sans-serif", 15))
         .draw()?;
-
-    // Plot diversity
+    
+    // Plot population diversity
     chart
         .draw_series(LineSeries::new(
             environment
@@ -284,31 +284,22 @@ pub fn plot_diversity_history(environment: &TrainingEnvironment) -> Result<()> {
         .label("Population Diversity")
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &PURPLE));
 
-    // Add reference lines if we have sufficient data
-    if !environment.fitness_history.is_empty() {
-        // Normalized avg fitness for comparison
-        let max_fitness = environment
-            .fitness_history
-            .iter()
-            .map(|(_gen, max, _avg, _min)| *max)
-            .fold(f64::NEG_INFINITY, |a, b| a.max(b));
-
-        if max_fitness > 0.0 {
-            // Plot normalized avg fitness on same scale for comparison
-            chart
-                .draw_series(LineSeries::new(
-                    environment
-                        .fitness_history
-                        .iter()
-                        .filter(|(gen, _max, _avg, _min)| {
-                            *gen < environment.diversity_history.len()
-                        })
-                        .map(|(gen, _max, avg, _min)| (*gen as u32, *avg / max_fitness * max_y)),
-                    &GREEN.mix(0.5),
-                ))?
-                .label("Normalized Avg Fitness")
-                .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREEN.mix(0.5)));
+    // Add a trend line (moving average) if we have enough data points
+    if environment.diversity_history.len() >= 3 {
+        // Calculate moving average (window size of 3)
+        let mut trend_data = Vec::new();
+        for i in 1..environment.diversity_history.len() - 1 {
+            let avg_diversity = (environment.diversity_history[i - 1].1
+                + environment.diversity_history[i].1
+                + environment.diversity_history[i + 1].1)
+                / 3.0;
+            trend_data.push((environment.diversity_history[i].0 as u32, avg_diversity));
         }
+
+        chart
+            .draw_series(LineSeries::new(trend_data, &RED.mix(0.5)))?
+            .label("Moving Average (3)")
+            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED.mix(0.5)));
     }
 
     chart
