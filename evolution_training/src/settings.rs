@@ -57,6 +57,10 @@ pub struct Settings {
 
     /// Path to the log file for saving training data
     pub log_file: String,
+
+    // Quoridor-specific settings
+    pub board_size: usize,
+    pub walls_per_player: usize,
 }
 
 impl Default for Settings {
@@ -98,6 +102,10 @@ impl Default for Settings {
 
             // Log file path
             log_file: "evolution_history.json".to_string(),
+
+            // Quoridor-specific settings
+            board_size: 9,
+            walls_per_player: 10,
         }
     }
 }

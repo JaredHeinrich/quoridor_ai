@@ -242,7 +242,6 @@ mod tests {
             "Expected {} agents to be reactivated but found {}", 
             settings.reactivator_count(), reactivated_count);
     
-        
         Ok(())
     }
     
