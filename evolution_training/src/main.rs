@@ -15,7 +15,7 @@ fn run() -> anyhow::Result<()> {
     // Create and configure settings with reasonable defaults
     let settings = Settings::default()
         .with_generation_size(10)
-        .with_network_architecture(vec![147, 128, 128, 128, 132])
+        .with_network_architecture(vec![147, 64, 64, 64, 132])
         .with_survival_rate(0.4)
         .with_reactivation_rate(0.2)
         .with_mutation_rate(0.1)

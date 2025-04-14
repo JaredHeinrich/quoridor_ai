@@ -2,6 +2,7 @@ use anyhow::Result;
 use rayon::prelude::*;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
+use plotters::prelude::*;
 
 use crate::evolution::generation::Generation;
 use crate::evolution::selection::select_next_generation;
@@ -29,6 +30,8 @@ pub struct TrainingEnvironment {
     pub current_generation: Generation,
     /// The current generation number (0-indexed)
     pub generation_number: usize,
+    /// Fitness history for plotting (generation, max_fitness, avg_fitness, min_fitness)
+    pub fitness_history: Vec<(usize, f64, f64, f64)>,
 }
 
 impl TrainingEnvironment {
@@ -39,6 +42,7 @@ impl TrainingEnvironment {
             settings,
             current_generation,
             generation_number: 0,
+            fitness_history: Vec::new(),
         }
     }
 
@@ -46,6 +50,7 @@ impl TrainingEnvironment {
     pub fn reset(&mut self) -> Result<()> {
         self.generation_number = 0;
         self.current_generation = Generation::create_initial(&self.settings)?;
+        self.fitness_history.clear();
         println!(
             "Initialized generation 0 with {} agents",
             self.settings.generation_size
@@ -102,6 +107,9 @@ impl TrainingEnvironment {
             total_duration
         );
         println!("Results saved to {}", self.settings.log_file);
+        
+        // Plot fitness history
+        self.plot_fitness_history()?;
 
         Ok(())
     }
@@ -129,6 +137,10 @@ impl TrainingEnvironment {
         println!("  Top fitness: {:.2}", top_fitness);
         println!("  Avg fitness: {:.2}", avg_fitness);
         println!("  Min fitness: {:.2}", min_fitness);
+
+        // Update fitness history
+        self.fitness_history
+            .push((self.generation_number, top_fitness, avg_fitness, min_fitness));
 
         Ok(())
     }
@@ -376,6 +388,82 @@ impl TrainingEnvironment {
             &self.current_generation.mutation_rate
         );
 
+        Ok(())
+    }
+
+    pub fn plot_fitness_history(&self) -> Result<()> {
+        if self.fitness_history.is_empty() {
+            println!("No fitness data to plot");
+            return Ok(());
+        }
+
+        let output_file = format!("{}_fitness_plot.png", self.settings.log_file.replace(".json", ""));
+        println!("Generating fitness plot at: {}", output_file);
+
+        // Create the plot
+        let root = BitMapBackend::new(&output_file, (1024, 768)).into_drawing_area();
+        root.fill(&WHITE)?;
+
+        // Find min and max values for y-axis
+        let min_y = self.fitness_history
+            .iter()
+            .map(|(_gen, _max, _avg, min)| *min)
+            .fold(f64::INFINITY, |a, b| a.min(b))
+            .min(0.0);
+        
+        let max_y = self.fitness_history
+            .iter()
+            .map(|(_gen, max, _avg, _min)| *max)
+            .fold(f64::NEG_INFINITY, |a, b| a.max(b))
+            * 1.1; // Add 10% margin
+        
+        let max_gen = self.fitness_history.len() as u32;
+
+        let mut chart = ChartBuilder::on(&root)
+            .caption("Fitness over Generations", ("sans-serif", 30).into_font())
+            .margin(10)
+            .x_label_area_size(40)
+            .y_label_area_size(60)
+            .build_cartesian_2d(0u32..max_gen, min_y..max_y)?;
+
+        chart.configure_mesh()
+            .x_desc("Generation")
+            .y_desc("Fitness")
+            .axis_desc_style(("sans-serif", 15))
+            .draw()?;
+
+        // Plot max fitness
+        chart.draw_series(LineSeries::new(
+            self.fitness_history.iter().map(|(gen, max, _avg, _min)| (*gen as u32, *max)),
+            &RED,
+        ))?
+        .label("Max Fitness")
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
+
+        // Plot average fitness
+        chart.draw_series(LineSeries::new(
+            self.fitness_history.iter().map(|(gen, _max, avg, _min)| (*gen as u32, *avg)),
+            &GREEN,
+        ))?
+        .label("Avg Fitness")
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREEN));
+
+        // Plot min fitness
+        chart.draw_series(LineSeries::new(
+            self.fitness_history.iter().map(|(gen, _max, _avg, min)| (*gen as u32, *min)),
+            &BLUE,
+        ))?
+        .label("Min Fitness")
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLUE));
+
+        chart.configure_series_labels()
+            .background_style(&WHITE.mix(0.8))
+            .border_style(&BLACK)
+            .draw()?;
+
+        root.present()?;
+        println!("Fitness plot generated at: {}", output_file);
+        
         Ok(())
     }
 }
