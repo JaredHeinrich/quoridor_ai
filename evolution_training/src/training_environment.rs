@@ -177,7 +177,6 @@ impl TrainingEnvironment {
         let (random_score, simple_score) = self.evaluate_against_benchmarks()?;
         self.benchmark_history
             .push((self.generation_number, random_score, simple_score));
-
         Ok(())
     }
 
