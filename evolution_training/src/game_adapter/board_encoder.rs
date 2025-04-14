@@ -51,10 +51,7 @@ pub fn encode_board(game: &Game) -> Result<Matrix> {
 }
 
 /// Encodes pawn positions from the perspective of the given player
-fn encode_pawn_positions(
-    game: &Game,
-    values: &mut Vec<f64>,
-) -> Result<()> {
+fn encode_pawn_positions(game: &Game, values: &mut Vec<f64>) -> Result<()> {
     let board_size = game.board_size as usize;
     let own_pawn = game.current_pawn();
     let opponent_pawn = game.other_pawn();
@@ -87,10 +84,7 @@ fn encode_pawn_positions(
 }
 
 /// Encodes wall positions from the perspective of the given player
-fn encode_wall_positions(
-    game: &Game,
-    values: &mut Vec<f64>,
-) -> Result<()> {
+fn encode_wall_positions(game: &Game, values: &mut Vec<f64>) -> Result<()> {
     let wall_grid_size = game.board_size as usize - 1;
 
     // Initialize all wall positions to 0.0 (no wall)
@@ -308,5 +302,4 @@ mod tests {
         assert_eq!(dist_p0_custom, 2); // Player 0 is 2 steps from goal
         assert_eq!(dist_p1_custom, 3); // Player 1 is 3 steps from goal
     }
-
 }

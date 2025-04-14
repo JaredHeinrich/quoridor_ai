@@ -343,7 +343,9 @@ impl TrainingEnvironment {
         // generate the input matrix under consideration of the current player perspective
         let input_matrix = encode_board(&game).unwrap();
         // Generate the neural network output
-        let mut nn_output_matrix = neural_network.feed_forward(input_matrix, output_activation).unwrap();
+        let mut nn_output_matrix = neural_network
+            .feed_forward(input_matrix, output_activation)
+            .unwrap();
 
         // Decode what move the neural network wants to do, converts it to the ga
         let game_move = decode_move(&mut nn_output_matrix, &game, &self.settings).unwrap();

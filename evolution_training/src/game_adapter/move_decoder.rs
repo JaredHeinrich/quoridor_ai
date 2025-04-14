@@ -9,7 +9,7 @@ use rand::{rng, Rng};
 use crate::error::GameAdapterError;
 use crate::settings::Settings;
 
-/// Decodes neural network output into a valid game move. 
+/// Decodes neural network output into a valid game move.
 /// The output is in the perspective of the current player. It needs to be transferred to the game's perspective first.
 ///
 /// The neural network output has 132 values representing:
@@ -50,13 +50,13 @@ fn change_output_layer_to_game_perspective(nn_output: &mut Matrix, game: &Game) 
         // Swap pawn movement directions (rotate 180°)
         // 0 UP <-> 2 DOWN
         nn_output.values.swap(0, 2);
-        
+
         // 1 RIGHT <-> 3 LEFT
         nn_output.values.swap(1, 3);
-        
+
         // Reverse horizontal walls (indices 4-67)
         reverse_segment(&mut nn_output.values, 4, 67);
-        
+
         // Reverse vertical walls (indices 68-131)
         reverse_segment(&mut nn_output.values, 68, 131);
     }
@@ -433,34 +433,34 @@ mod tests {
     #[test]
     fn test_change_output_layer_to_game_perspective() {
         let mut game = Game::new(9, 10);
-        
+
         // Create a sample neural network output
         let mut values = vec![0.0; 132];
         values[0] = 1.0; // UP
         values[1] = 2.0; // RIGHT
         values[2] = 3.0; // DOWN
         values[3] = 4.0; // LEFT
-        
+
         // Set some horizontal and vertical wall values
-        values[4] = 5.0;  // First horizontal wall
-        values[66] = 6.0;  // Second last horizontal wall]
+        values[4] = 5.0; // First horizontal wall
+        values[66] = 6.0; // Second last horizontal wall]
         values[67] = 7.0; // Last horizontal wall
         values[68] = 8.0; // First vertical wall
         values[131] = 9.0; // Last vertical wall
-        
+
         let mut nn_output = Matrix::new(132, 1, values).unwrap();
-        
+
         // For player 0, no change should occur
         let mut nn_output_p0 = nn_output.clone();
         change_output_layer_to_game_perspective(&mut nn_output_p0, &game);
-        
+
         assert_eq!(nn_output_p0.values[0], 1.0); // UP remains UP
         assert_eq!(nn_output_p0.values[1], 2.0); // RIGHT remains RIGHT
-        
+
         // For player 1, changes should occur
         game.current_pawn = 1;
         change_output_layer_to_game_perspective(&mut nn_output, &game);
-        
+
         assert_eq!(nn_output.values[0], 3.0); // UP becomes DOWN
         assert_eq!(nn_output.values[1], 4.0); // RIGHT becomes LEFT
         assert_eq!(nn_output.values[2], 1.0); // DOWN becomes UP
@@ -476,30 +476,30 @@ mod tests {
     fn test_change_output_layer_with_complex_pattern() {
         let mut game = Game::new(9, 10);
         game.current_pawn = 1;
-        
+
         // Create a sample neural network output with sequential values
         let mut values = vec![0.0; 132];
-        
+
         // Set a pattern for horizontal walls (indices 4-67)
         for i in 0..64 {
             values[4 + i] = i as f64;
         }
-        
+
         // Set a pattern for vertical walls (indices 68-131)
         for i in 0..64 {
             values[68 + i] = 100.0 + i as f64;
         }
-        
+
         let mut nn_output = Matrix::new(132, 1, values).unwrap();
-        
+
         // Apply the perspective change
         change_output_layer_to_game_perspective(&mut nn_output, &game);
-        
+
         // Verify horizontal walls are reversed
         for i in 0..64 {
             assert_eq!(nn_output.values[4 + i], (63 - i) as f64);
         }
-        
+
         // Verify vertical walls are reversed
         for i in 0..64 {
             assert_eq!(nn_output.values[68 + i], 100.0 + (63 - i) as f64);
