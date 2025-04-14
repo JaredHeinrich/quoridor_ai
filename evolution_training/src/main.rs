@@ -31,7 +31,7 @@ fn run() -> anyhow::Result<()> {
         )
         .with_max_moves_per_player(50)
         .with_deterministic_play(true)
-        .with_generation_count(1000);
+        .with_generation_count(100);
 
     // Validate settings
     settings.validate()?;
