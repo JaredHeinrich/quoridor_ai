@@ -7,7 +7,7 @@ use quoridor::wall::{Orientation, Wall};
 use rand::{rng, Rng};
 
 use crate::error::GameAdapterError;
-use crate::settings::{self, Settings};
+use crate::settings::Settings;
 
 /// Decodes neural network output into a valid game move.
 ///
@@ -237,6 +237,7 @@ mod tests {
     fn test_deterministic_pawn_move() {
         // Create a game with default setup
         let game = Game::new(9, 10);
+        let settings = &Settings::default().with_deterministic_play(true);
 
         // Create output that strongly prefers UP direction (index 0)
         let mut values = vec![0.0; 132];
@@ -244,7 +245,7 @@ mod tests {
 
         let nn_output = Matrix::new(132, 1, values).unwrap();
 
-        let result = decode_move(&nn_output, &game, true).unwrap();
+        let result = decode_move(&nn_output, &game, settings).unwrap();
 
         match result {
             Move::PawnMove(pos) => {
@@ -260,6 +261,7 @@ mod tests {
     fn test_deterministic_fallback_to_next_highest() {
         // Create a game with a wall blocking the UP direction
         let mut game = Game::new(9, 10);
+        let settings = &Settings::default().with_deterministic_play(true);
         game.walls
             .push(Wall::new(Vector::new(4, 7), Orientation::Horizontal));
 
@@ -270,7 +272,7 @@ mod tests {
 
         let nn_output = Matrix::new(132, 1, values).unwrap();
 
-        let result = decode_move(&nn_output, &game, true).unwrap();
+        let result = decode_move(&nn_output, &game, settings).unwrap();
 
         match result {
             Move::PawnMove(pos) => {
@@ -285,6 +287,7 @@ mod tests {
     #[test]
     fn test_deterministic_wall_placement() {
         let game = Game::new(9, 10);
+        let settings = &Settings::default().with_deterministic_play(true);
 
         // Create output that strongly prefers a horizontal wall at position (3, 3)
         let mut values = vec![0.0; 132];
@@ -293,7 +296,7 @@ mod tests {
 
         let nn_output = Matrix::new(132, 1, values).unwrap();
 
-        let result = decode_move(&nn_output, &game, true).unwrap();
+        let result = decode_move(&nn_output, &game, settings).unwrap();
 
         match result {
             Move::WallMove(wall) => {
@@ -308,6 +311,7 @@ mod tests {
     #[test]
     fn test_probabilistic_move_selection() {
         let game = Game::new(9, 10);
+        let settings = &Settings::default().with_deterministic_play(false);
 
         // Create relatively uniform output (slightly prefer pawn moves)
         let mut values = vec![1.0 / 128.0 / 3.0; 132];
@@ -323,7 +327,7 @@ mod tests {
         let mut wall_moves = 0;
 
         for _ in 0..100 {
-            let result = decode_move(&nn_output, &game, false).unwrap();
+            let result = decode_move(&nn_output, &game, settings).unwrap();
             match result {
                 Move::PawnMove(_) => pawn_moves += 1,
                 Move::WallMove(_) => wall_moves += 1,
@@ -339,6 +343,7 @@ mod tests {
 
     #[test]
     fn test_jump_over_opponent() {
+        let settings = &Settings::default().with_deterministic_play(true);
         // Create a game with pawns next to each other
         let board_size = 9;
         let pawns = [
@@ -367,7 +372,7 @@ mod tests {
 
         let nn_output = Matrix::new(132, 1, values).unwrap();
 
-        let result = decode_move(&nn_output, &game, true).unwrap();
+        let result = decode_move(&nn_output, &game, settings).unwrap();
 
         match result {
             Move::PawnMove(pos) => {
@@ -382,11 +387,12 @@ mod tests {
     #[test]
     fn test_invalid_output_size() {
         let game = Game::new(9, 10);
+        let settings = &Settings::default().with_deterministic_play(true);
 
         // Create output with wrong size
         let nn_output = Matrix::new(100, 1, vec![0.0; 100]).unwrap();
 
-        let result = decode_move(&nn_output, &game, true);
+        let result = decode_move(&nn_output, &game, settings);
         assert!(result.is_err());
     }
 }
