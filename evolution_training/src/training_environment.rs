@@ -443,8 +443,16 @@ mod tests {
         let env = TrainingEnvironment::new(settings);
 
         // Create two neural networks
-        let neural_network0 = NeuralNetwork::new(&vec![env.settings.input_layer_size, 100, env.settings.output_layer_size])?;
-        let neural_network1 = NeuralNetwork::new(&vec![env.settings.input_layer_size, 100, env.settings.output_layer_size])?;
+        let neural_network0 = NeuralNetwork::new(&vec![
+            env.settings.input_layer_size,
+            100,
+            env.settings.output_layer_size,
+        ])?;
+        let neural_network1 = NeuralNetwork::new(&vec![
+            env.settings.input_layer_size,
+            100,
+            env.settings.output_layer_size,
+        ])?;
 
         // Play a game and get rewards
         let (reward0, reward1) = env.play_single_game(&neural_network0, &neural_network1)?;
