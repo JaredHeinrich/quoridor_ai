@@ -4,3 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1.0.97"
+neural_network = {path = "../neural_network"}
+matrix = {path = "../matrix"}
+quoridor = {path = "../quoridor"}
+thiserror = "2.0.12"
+rand = "0.9.0"
+serde = { version = "1.0", features = ["derive"] }
+neural_network_logger = { path = "../neural_network_logger"}
+rayon = "1.10"
+plotters = "0.3"
+
+[dev-dependencies]

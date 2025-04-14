@@ -8,6 +8,7 @@ use crate::vector::{Vector, VectorUtility};
 use crate::wall::{Orientation, Wall};
 use crate::NUMBER_OF_PLAYERS;
 
+#[derive(Clone)]
 pub enum Move {
     PawnMove(Vector),
     WallMove(Wall),
@@ -43,10 +44,10 @@ impl Game {
         &mut self.pawns[self.current_pawn]
     }
     fn other_pawn(&self) -> &Pawn {
-        &self.pawns[self.current_pawn + 1 % NUMBER_OF_PLAYERS]
+        &self.pawns[(self.current_pawn + 1) % NUMBER_OF_PLAYERS]
     }
     fn set_current_pawn_next(&mut self) {
-        self.current_pawn = self.current_pawn + 1 % NUMBER_OF_PLAYERS;
+        self.current_pawn = (self.current_pawn + 1) % NUMBER_OF_PLAYERS;
     }
 
     pub fn make_move(&mut self, player_move: Move) -> Result<()> {
