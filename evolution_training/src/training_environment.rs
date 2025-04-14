@@ -38,6 +38,8 @@ pub struct TrainingEnvironment {
     pub diversity_history: Vec<(usize, f64)>,
     /// Benchmark history for plotting (generation, random_score, simple_score)
     pub benchmark_history: Vec<(usize, f64, f64)>,
+    /// Champion survival history for tracking (generation first appeared, generations survived)
+    pub champion_survival_history: Vec<(u32, u32)>,
 }
 
 impl TrainingEnvironment {
@@ -52,6 +54,7 @@ impl TrainingEnvironment {
             generation_time_history: Vec::new(),
             diversity_history: Vec::new(),
             benchmark_history: Vec::new(),
+            champion_survival_history: Vec::new(),
         }
     }
 
@@ -97,7 +100,7 @@ impl TrainingEnvironment {
             // Play all games in this generation and update fitness scores
             self.play_generation()?;
 
-            // Log and display results
+            // Log and display results (now includes champion tracking)
             self.log_generation_results()?;
 
             let generation_duration = gen_start_time.elapsed();
@@ -120,16 +123,21 @@ impl TrainingEnvironment {
         let total_duration = start_time.elapsed();
         println!(
             "Training complete after {} generations in {:.2?}",
-            self.generation_number + 1,
+            self.generation_number,
             total_duration
         );
         println!("Results saved to {}", self.settings.log_file);
+
+        // Make sure to process the final generation's champion
+        self.track_champion_survival()?;
 
         // Generate plots using the visualization module
         crate::visualization::plot_fitness_history(self)?;
         crate::visualization::plot_generation_times(self)?;
         crate::visualization::plot_benchmark_history(self)?;
-        crate::visualization::plot_diversity_history(self)?;    
+        crate::visualization::plot_champion_survival(self)?;
+        crate::visualization::plot_diversity_history(self)?;
+        
         Ok(())
     }
 
@@ -152,7 +160,7 @@ impl TrainingEnvironment {
             / generation.agents.len() as f64;
         let min_fitness = generation.agents.last().unwrap().get_fitness();
 
-        println!("Generation {} results:", self.generation_number + 1);
+        println!("Generation {} results:", self.generation_number);
         println!("  Top fitness: {:.2}", top_fitness);
         println!("  Avg fitness: {:.2}", avg_fitness);
         println!("  Min fitness: {:.2}", min_fitness);
@@ -176,6 +184,10 @@ impl TrainingEnvironment {
         let (random_score, simple_score) = self.evaluate_against_benchmarks()?;
         self.benchmark_history
             .push((self.generation_number, random_score, simple_score));
+        
+        // Track champion survival - integrated with other metrics
+        self.track_champion_survival()?;
+        
         Ok(())
     }
 
@@ -197,7 +209,7 @@ impl TrainingEnvironment {
         println!(
             "Playing {} games in generation {}",
             num_games,
-            self.generation_number + 1
+            self.generation_number
         );
 
         // Track progress for user feedback
@@ -455,7 +467,7 @@ impl TrainingEnvironment {
     pub fn evolve_population(&mut self) -> Result<()> {
         println!(
             "Evolving population for generation {}",
-            self.generation_number + 1
+            self.generation_number
         );
 
         // Create next generation using selection strategy
@@ -546,6 +558,102 @@ impl TrainingEnvironment {
 
         Ok((random_score, simple_score))
     }
+
+    /// Track champion survival across generations
+    pub fn track_champion_survival(&mut self) -> Result<()> {
+        // Only proceed if we have at least one agent
+        if self.current_generation.agents.is_empty() {
+            return Ok(());
+        }
+
+        // Ensure agents are sorted by fitness
+        self.current_generation.sort_by_fitness()?;
+        
+        // Get the current champion (top agent)
+        let current_champion = &self.current_generation.agents[0];
+        
+        // Generate a fingerprint of the champion's neural network
+        let fingerprint = generate_network_fingerprint(&current_champion.neural_network);
+        
+        // Static storage for tracking across function calls
+        static mut CURRENT_CHAMPION_FINGERPRINT: Option<String> = None;
+        static mut CHAMPION_FIRST_APPEARANCE: Option<usize> = None;
+        
+        unsafe {
+            // Check if this is a new champion
+            if let Some(last_fingerprint) = &CURRENT_CHAMPION_FINGERPRINT {
+                if *last_fingerprint != fingerprint {
+                    // If there was a previous champion, record their survival duration
+                    if let Some(appearance_gen) = CHAMPION_FIRST_APPEARANCE {
+                        let survival_duration = self.generation_number - appearance_gen;
+                        
+                        // Add to history (converting to u32 as per your struct definition)
+                        self.champion_survival_history.push((appearance_gen as u32, survival_duration as u32));
+                        
+                        println!("Champion from generation {} survived for {} generations", 
+                                 appearance_gen, survival_duration);
+                        
+                        // Update with new champion information
+                        CHAMPION_FIRST_APPEARANCE = Some(self.generation_number);
+                        CURRENT_CHAMPION_FINGERPRINT = Some(fingerprint);
+                    }
+                }
+            } else {
+                // First champion ever
+                CURRENT_CHAMPION_FINGERPRINT = Some(fingerprint);
+                CHAMPION_FIRST_APPEARANCE = Some(self.generation_number);
+                
+                println!("Initial champion recorded at generation {}", self.generation_number);
+            }
+            
+            // Handle the final generation's champion
+            if self.generation_number == self.settings.number_of_generations - 1 {
+                if let Some(appearance_gen) = CHAMPION_FIRST_APPEARANCE {
+                    let survival_duration = self.generation_number - appearance_gen + 1;
+                    
+                    // Only add if this champion hasn't already been recorded
+                    if CURRENT_CHAMPION_FINGERPRINT.is_some() {
+                        self.champion_survival_history.push((appearance_gen as u32, survival_duration as u32));
+                        
+                        println!("Final champion from generation {} survived for {} generations", 
+                                 appearance_gen, survival_duration);
+                    }
+                }
+            }
+        }
+        
+        Ok(())
+    }
+}
+
+/// Generate a fingerprint for a neural network to uniquely identify it
+fn generate_network_fingerprint(network: &NeuralNetwork) -> String {
+    // Create a simplified fingerprint based on weight patterns
+    // This is more robust than comparing exact weights
+    let mut signature = String::new();
+    
+    // Sample some weights from each layer to create a signature
+    for (i, weights) in network.weights.iter().enumerate() {
+        // Sample up to 10 values from each weight matrix
+        let sample_count = weights.values.len().min(10);
+        let step = (weights.values.len() / sample_count).max(1);
+        
+        for j in (0..weights.values.len()).step_by(step).take(sample_count) {
+            if j < weights.values.len() {
+                // Quantize the weight value to reduce sensitivity to small changes
+                let quantized = (weights.values[j] * 1000.0).round() / 1000.0;
+                signature.push_str(&format!("{}:{:.3}", i, quantized));
+            }
+        }
+    }
+    
+    // Hash the signature to create a compact fingerprint
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    
+    let mut hasher = DefaultHasher::new();
+    signature.hash(&mut hasher);
+    format!("{:x}", hasher.finish())
 }
 
 #[cfg(test)]
