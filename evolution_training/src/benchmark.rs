@@ -188,8 +188,8 @@ pub fn play_against_benchmark(
                 OutputActivation::Softmax
             };
 
-            let nn_output = neural_network.feed_forward(game_state, output_activation)?;
-            decode_move(&nn_output, &game, settings)?
+            let mut nn_output = neural_network.feed_forward(game_state, output_activation)?;
+            decode_move(&mut nn_output, &game, settings)?
         } else {
             // Benchmark agent's turn
             benchmark_agent.generate_move(&game)?

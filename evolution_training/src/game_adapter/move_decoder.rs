@@ -9,7 +9,8 @@ use rand::{rng, Rng};
 use crate::error::GameAdapterError;
 use crate::settings::Settings;
 
-/// Decodes neural network output into a valid game move.
+/// Decodes neural network output into a valid game move. 
+/// The output is in the perspective of the current player. It needs to be transferred to the game's perspective first.
 ///
 /// The neural network output has 132 values representing:
 /// - First 4 values: Pawn movements (UP, RIGHT, DOWN, LEFT)
@@ -23,8 +24,8 @@ use crate::settings::Settings;
 ///   if false, use output values as weights for probabilistic move selection
 ///
 /// # Returns
-/// A valid `Move` that can be applied to the game
-pub fn decode_move(nn_output: &Matrix, game: &Game, settings: &Settings) -> Result<Move> {
+/// A valid `Move` (from the game perspective) that can be applied to the game
+pub fn decode_move(nn_output: &mut Matrix, game: &Game, settings: &Settings) -> Result<Move> {
     // Validate output matrix dimensions
     if nn_output.rows != settings.output_layer_size || nn_output.columns != 1 {
         return Err(
@@ -32,10 +33,43 @@ pub fn decode_move(nn_output: &Matrix, game: &Game, settings: &Settings) -> Resu
         );
     }
 
+    if game.current_pawn == 1 {
+        // If it is the second's players turn the output_matrix needs to be interpreted differently so that the game understands it
+        change_output_layer_to_game_perspective(nn_output, game);
+    }
+
     if settings.play_deterministically {
         select_deterministic_move(nn_output, game)
     } else {
         select_probabilistic_move(nn_output, game)
+    }
+}
+
+fn change_output_layer_to_game_perspective(nn_output: &mut Matrix, game: &Game) {
+    if game.current_pawn == 1 {
+        // Swap pawn movement directions (rotate 180°)
+        // 0 UP <-> 2 DOWN
+        nn_output.values.swap(0, 2);
+        
+        // 1 RIGHT <-> 3 LEFT
+        nn_output.values.swap(1, 3);
+        
+        // Reverse horizontal walls (indices 4-67)
+        reverse_segment(&mut nn_output.values, 4, 67);
+        
+        // Reverse vertical walls (indices 68-131)
+        reverse_segment(&mut nn_output.values, 68, 131);
+    }
+}
+
+/// Helper function to reverse a segment of values in-place
+fn reverse_segment(values: &mut [f64], start: usize, end: usize) {
+    let mut left = start;
+    let mut right = end;
+    while left < right {
+        values.swap(left, right);
+        left += 1;
+        right -= 1;
     }
 }
 
@@ -163,7 +197,7 @@ fn try_create_pawn_move(direction_index: usize, game: &Game) -> Result<Move> {
         _ => return Err(GameAdapterError::IndexMovesOutOfBounds.into()),
     };
 
-    let current_position = game.pawns[game.current_pawn].position;
+    let current_position = game.current_pawn().position;
 
     let valid_positions = game.valid_next_positions();
 
@@ -177,7 +211,7 @@ fn try_create_pawn_move(direction_index: usize, game: &Game) -> Result<Move> {
     }
 
     // Handle special case: jumping over opponent
-    let opponent_position = game.pawns[1 - game.current_pawn].position;
+    let opponent_position = game.other_pawn().position;
     if expected_position == opponent_position {
         // Try to find a valid jump position (in the same direction)
         let jump_position = opponent_position.add(movement);
@@ -204,7 +238,7 @@ fn try_create_pawn_move(direction_index: usize, game: &Game) -> Result<Move> {
 /// Attempts to create a valid wall move
 fn try_create_wall_move(wall_index: usize, orientation: Orientation, game: &Game) -> Result<Move> {
     //If no walls left definetly Invalid Move
-    if game.pawns[game.current_pawn].number_of_available_walls <= 0 {
+    if game.current_pawn().number_of_available_walls <= 0 {
         return Err(GameAdapterError::InvalidMove.into());
     }
 
@@ -243,9 +277,9 @@ mod tests {
         let mut values = vec![0.0; 132];
         values[0] = 10.0; // UP - should be valid for player at bottom
 
-        let nn_output = Matrix::new(132, 1, values).unwrap();
+        let mut nn_output = Matrix::new(132, 1, values).unwrap();
 
-        let result = decode_move(&nn_output, &game, settings).unwrap();
+        let result = decode_move(&mut nn_output, &game, settings).unwrap();
 
         match result {
             Move::PawnMove(pos) => {
@@ -270,9 +304,9 @@ mod tests {
         values[0] = 10.0; // UP (blocked)
         values[1] = 8.0; // RIGHT (should be chosen)
 
-        let nn_output = Matrix::new(132, 1, values).unwrap();
+        let mut nn_output = Matrix::new(132, 1, values).unwrap();
 
-        let result = decode_move(&nn_output, &game, settings).unwrap();
+        let result = decode_move(&mut nn_output, &game, settings).unwrap();
 
         match result {
             Move::PawnMove(pos) => {
@@ -294,9 +328,9 @@ mod tests {
         let wall_index = 4 + 3 + (3 * 8); // 4 (pawn moves) + 3 + (3 * 8) = 31
         values[wall_index] = 10.0;
 
-        let nn_output = Matrix::new(132, 1, values).unwrap();
+        let mut nn_output = Matrix::new(132, 1, values).unwrap();
 
-        let result = decode_move(&nn_output, &game, settings).unwrap();
+        let result = decode_move(&mut nn_output, &game, settings).unwrap();
 
         match result {
             Move::WallMove(wall) => {
@@ -320,14 +354,14 @@ mod tests {
             values[i] = 1.0 / 6.0;
         }
 
-        let nn_output = Matrix::new(132, 1, values).unwrap();
+        let mut nn_output = Matrix::new(132, 1, values).unwrap();
 
         // Test multiple outcomes to verify probabilistic behavior
         let mut pawn_moves = 0;
         let mut wall_moves = 0;
 
         for _ in 0..100 {
-            let result = decode_move(&nn_output, &game, settings).unwrap();
+            let result = decode_move(&mut nn_output, &game, settings).unwrap();
             match result {
                 Move::PawnMove(_) => pawn_moves += 1,
                 Move::WallMove(_) => wall_moves += 1,
@@ -370,9 +404,9 @@ mod tests {
         let mut values = vec![0.0; 132];
         values[0] = 10.0; // UP
 
-        let nn_output = Matrix::new(132, 1, values).unwrap();
+        let mut nn_output = Matrix::new(132, 1, values).unwrap();
 
-        let result = decode_move(&nn_output, &game, settings).unwrap();
+        let result = decode_move(&mut nn_output, &game, settings).unwrap();
 
         match result {
             Move::PawnMove(pos) => {
@@ -390,9 +424,85 @@ mod tests {
         let settings = &Settings::default().with_deterministic_play(true);
 
         // Create output with wrong size
-        let nn_output = Matrix::new(100, 1, vec![0.0; 100]).unwrap();
+        let mut nn_output = Matrix::new(100, 1, vec![0.0; 100]).unwrap();
 
-        let result = decode_move(&nn_output, &game, settings);
+        let result = decode_move(&mut nn_output, &game, settings);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_change_output_layer_to_game_perspective() {
+        let mut game = Game::new(9, 10);
+        
+        // Create a sample neural network output
+        let mut values = vec![0.0; 132];
+        values[0] = 1.0; // UP
+        values[1] = 2.0; // RIGHT
+        values[2] = 3.0; // DOWN
+        values[3] = 4.0; // LEFT
+        
+        // Set some horizontal and vertical wall values
+        values[4] = 5.0;  // First horizontal wall
+        values[66] = 6.0;  // Second last horizontal wall]
+        values[67] = 7.0; // Last horizontal wall
+        values[68] = 8.0; // First vertical wall
+        values[131] = 9.0; // Last vertical wall
+        
+        let mut nn_output = Matrix::new(132, 1, values).unwrap();
+        
+        // For player 0, no change should occur
+        let mut nn_output_p0 = nn_output.clone();
+        change_output_layer_to_game_perspective(&mut nn_output_p0, &game);
+        
+        assert_eq!(nn_output_p0.values[0], 1.0); // UP remains UP
+        assert_eq!(nn_output_p0.values[1], 2.0); // RIGHT remains RIGHT
+        
+        // For player 1, changes should occur
+        game.current_pawn = 1;
+        change_output_layer_to_game_perspective(&mut nn_output, &game);
+        
+        assert_eq!(nn_output.values[0], 3.0); // UP becomes DOWN
+        assert_eq!(nn_output.values[1], 4.0); // RIGHT becomes LEFT
+        assert_eq!(nn_output.values[2], 1.0); // DOWN becomes UP
+        assert_eq!(nn_output.values[3], 2.0); // LEFT becomes RIGHT
+        assert_eq!(nn_output.values[4], 7.0); // First horizontal wall becomes last
+        assert_eq!(nn_output.values[5], 6.0); // Second last horizontal wall becomes second
+        assert_eq!(nn_output.values[67], 5.0); // Last horizontal wall becomes first
+        assert_eq!(nn_output.values[68], 9.0); // First vertical wall becomes last
+        assert_eq!(nn_output.values[131], 8.0); // Last vertical wall becomes first
+    }
+
+    #[test]
+    fn test_change_output_layer_with_complex_pattern() {
+        let mut game = Game::new(9, 10);
+        game.current_pawn = 1;
+        
+        // Create a sample neural network output with sequential values
+        let mut values = vec![0.0; 132];
+        
+        // Set a pattern for horizontal walls (indices 4-67)
+        for i in 0..64 {
+            values[4 + i] = i as f64;
+        }
+        
+        // Set a pattern for vertical walls (indices 68-131)
+        for i in 0..64 {
+            values[68 + i] = 100.0 + i as f64;
+        }
+        
+        let mut nn_output = Matrix::new(132, 1, values).unwrap();
+        
+        // Apply the perspective change
+        change_output_layer_to_game_perspective(&mut nn_output, &game);
+        
+        // Verify horizontal walls are reversed
+        for i in 0..64 {
+            assert_eq!(nn_output.values[4 + i], (63 - i) as f64);
+        }
+        
+        // Verify vertical walls are reversed
+        for i in 0..64 {
+            assert_eq!(nn_output.values[68 + i], 100.0 + (63 - i) as f64);
+        }
     }
 }

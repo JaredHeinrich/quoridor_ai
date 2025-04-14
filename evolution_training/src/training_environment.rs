@@ -304,6 +304,7 @@ impl TrainingEnvironment {
             } else {
                 neural_network1
             };
+
             let action: GameResult =
                 self.nn_move(current_agent_nn, &mut game, move_counter, output_activation);
             // If the game is won, break out of the loop
@@ -340,13 +341,16 @@ impl TrainingEnvironment {
         move_counter: usize,
         output_activation: OutputActivation,
     ) -> GameResult {
-        // Get and execute move
-        let game_state = encode_board(&game);
-        let nn_output = neural_network.feed_forward(game_state.unwrap(), output_activation);
-        let game_move = decode_move(&nn_output.unwrap(), &game, &self.settings);
+        // generate the input matrix under consideration of the current player perspective
+        let input_matrix = encode_board(&game).unwrap();
+        // Generate the neural network output
+        let mut nn_output_matrix = neural_network.feed_forward(input_matrix, output_activation).unwrap();
+
+        // Decode what move the neural network wants to do, converts it to the ga
+        let game_move = decode_move(&mut nn_output_matrix, &game, &self.settings).unwrap();
 
         // Execute move
-        if let Err(_) = &game.make_move(game_move.unwrap()) {
+        if let Err(_) = &game.make_move(game_move) {
             // If move execution failed, we'll end the game and consider it a draw
             // This shouldn't happen if move_decoder is working correctly, but just in case
             print!("Invalid move executed, move_decoder malfunctioning, ending game.");
