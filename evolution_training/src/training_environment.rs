@@ -13,10 +13,11 @@ use neural_network::neural_network::{NeuralNetwork, OutputActivation};
 use neural_network_logger::logger::log_generation;
 use quoridor::game_state::Game;
 
-pub enum MoveResult {
+#[derive(Debug, Clone, PartialEq)]
+pub enum GameResult {
     Win(usize),
     Invalid,
-    Move,
+    Draw,
 }
 
 /// Manages the training environment for neural network agents playing Quoridor
@@ -244,8 +245,8 @@ impl TrainingEnvironment {
             OutputActivation::Softmax
         };
 
-        // Play until someone wins or max moves reached
         let mut moves_played = self.settings.max_moves_per_player;
+        // Play until someone wins or max moves reached
         for move_counter in 0..self.settings.max_moves_per_player * 2 {
             // Determine which agent's turn it is
             let current_player_index = game.current_pawn;
@@ -254,9 +255,13 @@ impl TrainingEnvironment {
             } else {
                 neural_network1
             };
-            self.nn_move(current_agent_nn, &mut game, move_counter, output_activation);
+            let action: GameResult = self.nn_move(current_agent_nn, &mut game, move_counter, output_activation);
+            // If the game is won, break out of the loop
+            if let GameResult::Win(moves_to_win) = action {
+                moves_played = moves_to_win;
+                break;
+            }
         }
-
         // Calculate rewards for both players
         self.calculate_rewards(&game, moves_played)
     }
@@ -267,7 +272,7 @@ impl TrainingEnvironment {
         game: &mut Game,
         move_counter: usize,
         output_activation: OutputActivation,
-    ) -> MoveResult {
+    ) -> GameResult {
         // Get and execute move
         let game_state = encode_board(&game);
         let nn_output = neural_network.feed_forward(game_state.unwrap(), output_activation);
@@ -279,15 +284,15 @@ impl TrainingEnvironment {
             // If move execution failed, we'll end the game and consider it a draw
             // This shouldn't happen if move_decoder is working correctly, but just in case
             print!("Invalid move executed, move_decoder malfunctioning, ending game.");
-            return MoveResult::Invalid;
+            return GameResult::Invalid;
         }
 
         // Check if game is over// Check for win condition or max moves
         if self.is_win(&game) {
             let moves_played = (move_counter + 1) / 2;
-            return MoveResult::Win(moves_played);
+            return GameResult::Win(moves_played);
         } else {
-            return MoveResult::Move;
+            return GameResult::Draw;
         }
 
     }
