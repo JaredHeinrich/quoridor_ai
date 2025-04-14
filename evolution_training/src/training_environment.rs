@@ -32,6 +32,8 @@ pub struct TrainingEnvironment {
     pub generation_number: usize,
     /// Fitness history for plotting (generation, max_fitness, avg_fitness, min_fitness)
     pub fitness_history: Vec<(usize, f64, f64, f64)>,
+    /// Generation time history for plotting (generation, time_in_seconds)
+    pub generation_time_history: Vec<(usize, f64)>,
 }
 
 impl TrainingEnvironment {
@@ -43,6 +45,7 @@ impl TrainingEnvironment {
             current_generation,
             generation_number: 0,
             fitness_history: Vec::new(),
+            generation_time_history: Vec::new(),
         }
     }
 
@@ -51,6 +54,7 @@ impl TrainingEnvironment {
         self.generation_number = 0;
         self.current_generation = Generation::create_initial(&self.settings)?;
         self.fitness_history.clear();
+        self.generation_time_history.clear();
         println!(
             "Initialized generation 0 with {} agents",
             self.settings.generation_size
@@ -89,6 +93,13 @@ impl TrainingEnvironment {
             self.log_generation_results()?;
 
             let generation_duration = gen_start_time.elapsed();
+            
+            // Store generation time for plotting (in seconds)
+            self.generation_time_history.push((
+                self.generation_number,
+                generation_duration.as_secs_f64()
+            ));
+            
             println!(
                 "Generation {} completed in {:.2?}",
                 self.generation_number, generation_duration
@@ -110,6 +121,9 @@ impl TrainingEnvironment {
         
         // Plot fitness history
         self.plot_fitness_history()?;
+        
+        // Plot generation times
+        self.plot_generation_times()?;
 
         Ok(())
     }
@@ -463,6 +477,80 @@ impl TrainingEnvironment {
 
         root.present()?;
         println!("Fitness plot generated at: {}", output_file);
+        
+        Ok(())
+    }
+
+    pub fn plot_generation_times(&self) -> Result<()> {
+        if self.generation_time_history.is_empty() {
+            println!("No generation time data to plot");
+            return Ok(());
+        }
+
+        let output_file = format!("{}_time_plot.png", self.settings.log_file.replace(".json", ""));
+        println!("Generating generation time plot at: {}", output_file);
+
+        // Create the plot
+        let root = BitMapBackend::new(&output_file, (1024, 768)).into_drawing_area();
+        root.fill(&WHITE)?;
+
+        // Find min and max values for y-axis
+        let min_y = 0.0;  // Time can't be negative
+        let max_y = self.generation_time_history
+            .iter()
+            .map(|(_gen, time)| *time)
+            .fold(f64::NEG_INFINITY, |a, b| a.max(b))
+            * 1.1; // Add 10% margin
+        
+        let max_gen = self.generation_time_history.len() as u32;
+
+        let mut chart = ChartBuilder::on(&root)
+            .caption("Generation Time", ("sans-serif", 30).into_font())
+            .margin(10)
+            .x_label_area_size(40)
+            .y_label_area_size(60)
+            .build_cartesian_2d(0u32..max_gen, min_y..max_y)?;
+
+        chart.configure_mesh()
+            .x_desc("Generation")
+            .y_desc("Time (seconds)")
+            .axis_desc_style(("sans-serif", 15))
+            .draw()?;
+
+        // Plot generation time
+        chart.draw_series(LineSeries::new(
+            self.generation_time_history.iter().map(|(gen, time)| (*gen as u32, *time)),
+            &BLUE,
+        ))?
+        .label("Generation Time (s)")
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLUE));
+
+        // Add a trend line (moving average) if we have enough data points
+        if self.generation_time_history.len() >= 3 {
+            // Calculate moving average (window size of 3)
+            let mut trend_data = Vec::new();
+            for i in 1..self.generation_time_history.len() - 1 {
+                let avg_time = (self.generation_time_history[i-1].1 + 
+                               self.generation_time_history[i].1 + 
+                               self.generation_time_history[i+1].1) / 3.0;
+                trend_data.push((self.generation_time_history[i].0 as u32, avg_time));
+            }
+            
+            chart.draw_series(LineSeries::new(
+                trend_data,
+                &RED.mix(0.5),
+            ))?
+            .label("Moving Average (3)")
+            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED.mix(0.5)));
+        }
+
+        chart.configure_series_labels()
+            .background_style(&WHITE.mix(0.8))
+            .border_style(&BLACK)
+            .draw()?;
+
+        root.present()?;
+        println!("Generation time plot generated at: {}", output_file);
         
         Ok(())
     }
