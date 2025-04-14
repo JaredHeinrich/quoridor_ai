@@ -30,7 +30,8 @@ use quoridor::wall::Orientation;
 ///
 /// # Returns
 /// A 147x1 Matrix containing the encoded board state
-pub fn encode_board(game: &Game, player_perspective: usize) -> Result<Matrix> {
+pub fn encode_board(game: &Game) -> Result<Matrix> {
+    let player_perspective = game.current_pawn;
     let board_size = game.board_size as usize;
     let wall_grid_size = board_size - 1;
     let total_size = board_size * board_size + wall_grid_size * wall_grid_size + 2;
@@ -162,7 +163,7 @@ fn transform_coordinates(
 
 /// Encodes a Quoridor game state from the current player's perspective
 pub fn encode_from_current_player(game: &Game) -> Result<Matrix> {
-    encode_board(game, game.current_pawn)
+    encode_board(game)
 }
 
 /// Calculates the Manhattan distance from a pawn to its goal
@@ -185,7 +186,7 @@ mod tests {
         // Create a 9x9 board with 10 walls per player
         let game = Game::new(9, 10);
 
-        let encoded = encode_board(&game, 0).unwrap();
+        let encoded = encode_board(&game).unwrap();
 
         // Check dimensions
         assert_eq!(encoded.rows, 147);
@@ -226,7 +227,7 @@ mod tests {
         ];
 
         // Create game with custom state
-        let game = Game {
+        let mut game = Game {
             pawns,
             current_pawn: 0,
             board_size,
@@ -234,7 +235,7 @@ mod tests {
         };
 
         // Encode from perspective of player 0
-        let encoded = encode_board(&game, 0).unwrap();
+        let encoded = encode_board(&game).unwrap();
 
         // Calculate indices
         let player0_pawn_index = 7 * board_size as usize + 4; // row 7, col 4
@@ -259,7 +260,8 @@ mod tests {
         assert_eq!(encoded.values[146], 8.0); // Player 1 has 8 walls
 
         // Switch perspective to player 1
-        let encoded_p1 = encode_board(&game, 1).unwrap();
+        game.current_pawn = 1;
+        let encoded_p1 = encode_board(&game).unwrap();
 
         // board form player 1 perspective is different
         let player0_pawn_index_t =
