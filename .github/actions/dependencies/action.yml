@@ -12,3 +12,6 @@ runs:
     - name: Install libudev
       run: sudo apt-get install -y libudev-dev
       shell: bash
+    - name: Install libfontconfig
+      run: sudo apt install -y libfontconfig1-dev
+      shell: bash
