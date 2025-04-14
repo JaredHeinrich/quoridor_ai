@@ -12,7 +12,6 @@ use crate::game_adapter::reward::{reward_simple_per_game, reward_symmetric_per_g
 use neural_network::neural_network::{NeuralNetwork, OutputActivation};
 use neural_network_logger::logger::log_generation;
 use quoridor::game_state::Game;
-use neural_network_logger::traits::GenerationLike;
 
 /// Manages the training environment for neural network agents playing Quoridor
 pub struct TrainingEnvironment {
@@ -208,7 +207,7 @@ impl TrainingEnvironment {
         
         // Play until someone wins or max moves reached
         let mut moves_played = self.settings.max_moves_per_player;
-        for mut move_counter in 0..self.settings.max_moves_per_player * 2  {
+        for move_counter in 0..self.settings.max_moves_per_player * 2  {
             // Determine which agent's turn it is
             let current_player_index = game.current_pawn;
             let current_agent_nn = if current_player_index == 0 { neural_network0 } else { neural_network1 };
@@ -225,6 +224,7 @@ impl TrainingEnvironment {
                 print!("Invalid move executed, move_decoder malfunctioning, ending game.");
                 break;
             }
+            print!("current pawn: {}",game.current_pawn);
             
             // Check if game is over// Check for win condition or max moves
             if self.is_win(&game) {
@@ -298,8 +298,6 @@ impl TrainingEnvironment {
 
 #[cfg(test)]
 mod tests {
-    use crate::evolution::generation;
-
     use super::*;
     use quoridor::vector::Vector;
 
