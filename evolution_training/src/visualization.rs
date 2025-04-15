@@ -272,7 +272,7 @@ pub fn plot_diversity_history(environment: &TrainingEnvironment) -> Result<()> {
         .axis_desc_style(("sans-serif", 15))
         .draw()?;
 
-    // Plot diversity
+    // Plot population diversity
     chart
         .draw_series(LineSeries::new(
             environment
@@ -284,31 +284,22 @@ pub fn plot_diversity_history(environment: &TrainingEnvironment) -> Result<()> {
         .label("Population Diversity")
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &PURPLE));
 
-    // Add reference lines if we have sufficient data
-    if !environment.fitness_history.is_empty() {
-        // Normalized avg fitness for comparison
-        let max_fitness = environment
-            .fitness_history
-            .iter()
-            .map(|(_gen, max, _avg, _min)| *max)
-            .fold(f64::NEG_INFINITY, |a, b| a.max(b));
-
-        if max_fitness > 0.0 {
-            // Plot normalized avg fitness on same scale for comparison
-            chart
-                .draw_series(LineSeries::new(
-                    environment
-                        .fitness_history
-                        .iter()
-                        .filter(|(gen, _max, _avg, _min)| {
-                            *gen < environment.diversity_history.len()
-                        })
-                        .map(|(gen, _max, avg, _min)| (*gen as u32, *avg / max_fitness * max_y)),
-                    &GREEN.mix(0.5),
-                ))?
-                .label("Normalized Avg Fitness")
-                .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREEN.mix(0.5)));
+    // Add a trend line (moving average) if we have enough data points
+    if environment.diversity_history.len() >= 3 {
+        // Calculate moving average (window size of 3)
+        let mut trend_data = Vec::new();
+        for i in 1..environment.diversity_history.len() - 1 {
+            let avg_diversity = (environment.diversity_history[i - 1].1
+                + environment.diversity_history[i].1
+                + environment.diversity_history[i + 1].1)
+                / 3.0;
+            trend_data.push((environment.diversity_history[i].0 as u32, avg_diversity));
         }
+
+        chart
+            .draw_series(LineSeries::new(trend_data, &RED.mix(0.5)))?
+            .label("Moving Average (3)")
+            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED.mix(0.5)));
     }
 
     chart
@@ -401,6 +392,242 @@ pub fn plot_benchmark_history(environment: &TrainingEnvironment) -> Result<()> {
 
     root.present()?;
     println!("Benchmark plot generated at: {}", output_file);
+
+    Ok(())
+}
+
+/// Plot how long each generation's champion survives
+pub fn plot_champion_survival(environment: &TrainingEnvironment) -> Result<()> {
+    if environment.champion_survival_history.is_empty() {
+        println!("No champion survival data to plot");
+        return Ok(());
+    }
+
+    let output_file = format!(
+        "{}_champion_survival_plot.png",
+        environment.settings.log_file.replace(".json", "")
+    );
+    println!("Generating champion survival plot at: {}", output_file);
+
+    // Create the plot
+    let root = BitMapBackend::new(&output_file, (1024, 768)).into_drawing_area();
+    root.fill(&WHITE)?;
+
+    // Determine the maximum values for axes
+    let max_gen = environment
+        .champion_survival_history
+        .iter()
+        .map(|(gen, _)| *gen)
+        .max()
+        .unwrap_or(0) as u32
+        + 5; // Add some margin
+
+    let max_survival = environment
+        .champion_survival_history
+        .iter()
+        .map(|(_, survival)| *survival)
+        .max()
+        .unwrap_or(0) as u32
+        + 2; // Add some margin
+
+    // Create chart
+    let mut chart = ChartBuilder::on(&root)
+        .caption("Champion Survival Duration", ("sans-serif", 30).into_font())
+        .margin(10)
+        .x_label_area_size(40)
+        .y_label_area_size(60)
+        .build_cartesian_2d(0u32..max_gen, 0u32..max_survival)?;
+
+    chart
+        .configure_mesh()
+        .x_desc("Generation Champion First Appeared")
+        .y_desc("Generations Survived")
+        .axis_desc_style(("sans-serif", 15))
+        .draw()?;
+
+    // Plot bars showing survival duration
+    chart.draw_series(
+        environment
+            .champion_survival_history
+            .iter()
+            .map(|(gen, survival)| {
+                Rectangle::new(
+                    [(*gen as u32, 0), (*gen as u32 + 1, *survival as u32)],
+                    BLUE.filled(),
+                )
+            }),
+    )?;
+
+    // Add a line showing the average survival duration
+    let avg_survival = environment
+        .champion_survival_history
+        .iter()
+        .map(|(_, survival)| *survival as f64)
+        .sum::<f64>()
+        / environment.champion_survival_history.len() as f64;
+
+    chart
+        .draw_series(LineSeries::new(
+            vec![(0, avg_survival as u32), (max_gen, avg_survival as u32)],
+            RED.mix(0.7).stroke_width(2),
+        ))?
+        .label(format!("Average Survival: {:.1} generations", avg_survival))
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED.mix(0.7)));
+
+    // Instead, create points at the bottom of the existing chart
+    let introduction_points: Vec<(u32, u32)> = environment
+        .champion_survival_history
+        .iter()
+        .map(|(gen, _)| (*gen as u32, 0)) // Place them at y=0
+        .collect();
+
+    if !introduction_points.is_empty() {
+        // Draw circles at the bottom to indicate champion introduction points
+        chart
+            .draw_series(
+                introduction_points
+                    .iter()
+                    .map(|&(x, y)| Circle::new((x, y), 5, GREEN.mix(0.7).filled())),
+            )?
+            .label("New Champion Introduction")
+            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREEN.mix(0.7)));
+
+        // Calculate the rate of change (new champions per 10 generations)
+        let generations_span = environment
+            .champion_survival_history
+            .iter()
+            .map(|(gen, _)| *gen)
+            .max()
+            .unwrap_or(0) as f64
+            - environment
+                .champion_survival_history
+                .iter()
+                .map(|(gen, _)| *gen)
+                .min()
+                .unwrap_or(0) as f64;
+
+        if generations_span > 0.0 {
+            let change_rate =
+                (environment.champion_survival_history.len() as f64 * 10.0) / generations_span;
+            chart
+                .draw_series(LineSeries::new(vec![], RED))?
+                .label(format!(
+                    "Champion turnover rate: {:.2} per 10 generations",
+                    change_rate
+                ));
+        }
+    }
+
+    chart
+        .configure_series_labels()
+        .background_style(&WHITE.mix(0.8))
+        .border_style(&BLACK)
+        .position(SeriesLabelPosition::UpperRight)
+        .draw()?;
+
+    root.present()?;
+    println!("Champion survival plot generated at: {}", output_file);
+
+    Ok(())
+}
+
+/// Plot the percentage of games ending with a win in each generation
+pub fn plot_win_statistics(environment: &TrainingEnvironment) -> Result<()> {
+    if environment.win_statistics_history.is_empty() {
+        println!("No win statistics data to plot");
+        return Ok(());
+    }
+
+    let output_file = format!(
+        "{}_win_statistics_plot.png",
+        environment.settings.log_file.replace(".json", "")
+    );
+    println!("Generating win statistics plot at: {}", output_file);
+
+    // Create the plot
+    let root = BitMapBackend::new(&output_file, (1024, 768)).into_drawing_area();
+    root.fill(&WHITE)?;
+
+    // Calculate win percentages
+    let win_percentages: Vec<(u32, f64)> = environment
+        .win_statistics_history
+        .iter()
+        .map(|(gen, wins, total)| {
+            (
+                *gen as u32,
+                if *total > 0 {
+                    100.0 * *wins as f64 / *total as f64
+                } else {
+                    0.0
+                },
+            )
+        })
+        .collect();
+
+    // Find min and max values for y-axis
+    let min_y = 0.0;
+    let max_y = 100.0;
+
+    let max_gen = environment.win_statistics_history.len() as u32;
+
+    let mut chart = ChartBuilder::on(&root)
+        .caption(
+            "Game Outcomes per Generation",
+            ("sans-serif", 30).into_font(),
+        )
+        .margin(10)
+        .x_label_area_size(40)
+        .y_label_area_size(60)
+        .build_cartesian_2d(0u32..max_gen, min_y..max_y)?;
+
+    chart
+        .configure_mesh()
+        .x_desc("Generation")
+        .y_desc("Win Percentage (%)")
+        .axis_desc_style(("sans-serif", 15))
+        .draw()?;
+
+    // Plot win percentage
+    chart
+        .draw_series(LineSeries::new(win_percentages, &GREEN.mix(0.8)))?
+        .label("Games Ending in Win (%)")
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREEN.mix(0.8)));
+
+    // Add bar chart showing actual win counts
+    chart.draw_series(
+        environment
+            .win_statistics_history
+            .iter()
+            .map(|(gen, wins, total)| {
+                let win_pct = if *total > 0 {
+                    100.0 * *wins as f64 / *total as f64
+                } else {
+                    0.0
+                };
+                Rectangle::new(
+                    [(*gen as u32, 0.0), ((*gen as f64 + 0.8) as u32, win_pct)],
+                    GREEN.mix(0.3).filled(),
+                )
+            }),
+    )?;
+
+    // Add a reference line at 50%
+    chart
+        .draw_series(LineSeries::new(
+            vec![(0, 50.0), (max_gen, 50.0)],
+            &BLACK.mix(0.3),
+        ))?
+        .label("50% Reference")
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLACK.mix(0.3)));
+
+    chart
+        .configure_series_labels()
+        .background_style(&WHITE.mix(0.8))
+        .border_style(&BLACK)
+        .draw()?;
+
+    root.present()?;
+    println!("Win statistics plot generated at: {}", output_file);
 
     Ok(())
 }

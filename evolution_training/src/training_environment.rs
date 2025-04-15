@@ -1,5 +1,6 @@
 use anyhow::Result;
 use rayon::prelude::*;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
@@ -38,6 +39,14 @@ pub struct TrainingEnvironment {
     pub diversity_history: Vec<(usize, f64)>,
     /// Benchmark history for plotting (generation, random_score, simple_score)
     pub benchmark_history: Vec<(usize, f64, f64)>,
+    /// Champion survival history for tracking (generation first appeared, generations survived)
+    pub champion_survival_history: Vec<(u32, u32)>,
+    /// Win statistics history (generation, wins, total_games)
+    pub win_statistics_history: Vec<(usize, usize, usize)>,
+    /// Current champion's network fingerprint
+    current_champion_fingerprint: Option<String>,
+    /// Generation when current champion first appeared
+    champion_first_appearance: Option<usize>,
 }
 
 impl TrainingEnvironment {
@@ -52,6 +61,10 @@ impl TrainingEnvironment {
             generation_time_history: Vec::new(),
             diversity_history: Vec::new(),
             benchmark_history: Vec::new(),
+            champion_survival_history: Vec::new(),
+            win_statistics_history: Vec::new(),
+            current_champion_fingerprint: None,
+            champion_first_appearance: None,
         }
     }
 
@@ -63,6 +76,9 @@ impl TrainingEnvironment {
         self.generation_time_history.clear();
         self.diversity_history.clear();
         self.benchmark_history.clear();
+        self.win_statistics_history.clear();
+        self.current_champion_fingerprint = None;
+        self.champion_first_appearance = None;
         println!(
             "Initialized generation 0 with {} agents",
             self.settings.generation_size
@@ -102,9 +118,11 @@ impl TrainingEnvironment {
 
             let generation_duration = gen_start_time.elapsed();
 
-            // Store generation time for plotting (in seconds)
-            self.generation_time_history
-                .push((self.generation_number, generation_duration.as_secs_f64()));
+            // Only store generation time for plotting if visualizations are enabled
+            if self.settings.show_visualizations {
+                self.generation_time_history
+                    .push((self.generation_number, generation_duration.as_secs_f64()));
+            }
 
             println!(
                 "Generation {} completed in {:.2?}",
@@ -120,16 +138,23 @@ impl TrainingEnvironment {
         let total_duration = start_time.elapsed();
         println!(
             "Training complete after {} generations in {:.2?}",
-            self.generation_number + 1,
-            total_duration
+            self.generation_number, total_duration
         );
         println!("Results saved to {}", self.settings.log_file);
 
-        // Generate plots using the visualization module
-        crate::visualization::plot_fitness_history(self)?;
-        crate::visualization::plot_generation_times(self)?;
-        crate::visualization::plot_diversity_history(self)?;
-        crate::visualization::plot_benchmark_history(self)?;
+        // Make sure to process the final generation's champion
+        self.track_champion_survival()?;
+
+        // Only generate plots if visualizations are enabled
+        if self.settings.show_visualizations {
+            println!("Generating visualization plots...");
+            crate::visualization::plot_fitness_history(self)?;
+            crate::visualization::plot_generation_times(self)?;
+            crate::visualization::plot_benchmark_history(self)?;
+            crate::visualization::plot_champion_survival(self)?;
+            crate::visualization::plot_win_statistics(self)?;
+            crate::visualization::plot_diversity_history(self)?;
+        }
 
         Ok(())
     }
@@ -143,40 +168,46 @@ impl TrainingEnvironment {
         // Log generation to file
         log_generation(generation, &self.settings.log_file)?;
 
-        // Display stats
-        let top_fitness = generation.agents[0].get_fitness();
-        let avg_fitness: f64 = generation
-            .agents
-            .iter()
-            .map(|a| a.get_fitness())
-            .sum::<f64>()
-            / generation.agents.len() as f64;
-        let min_fitness = generation.agents.last().unwrap().get_fitness();
+        // Only collect visualization data if enabled
+        if self.settings.show_visualizations {
+            // Display stats
+            let top_fitness = generation.agents[0].get_fitness();
+            let avg_fitness: f64 = generation
+                .agents
+                .iter()
+                .map(|a| a.get_fitness())
+                .sum::<f64>()
+                / generation.agents.len() as f64;
+            let min_fitness = generation.agents.last().unwrap().get_fitness();
 
-        println!("Generation {} results:", self.generation_number + 1);
-        println!("  Top fitness: {:.2}", top_fitness);
-        println!("  Avg fitness: {:.2}", avg_fitness);
-        println!("  Min fitness: {:.2}", min_fitness);
+            println!("Generation {} results:", self.generation_number);
+            println!("  Top fitness: {:.2}", top_fitness);
+            println!("  Avg fitness: {:.2}", avg_fitness);
+            println!("  Min fitness: {:.2}", min_fitness);
 
-        // Update fitness history
-        self.fitness_history.push((
-            self.generation_number,
-            top_fitness,
-            avg_fitness,
-            min_fitness,
-        ));
+            // Update fitness history
+            self.fitness_history.push((
+                self.generation_number,
+                top_fitness,
+                avg_fitness,
+                min_fitness,
+            ));
 
-        // Calculate and record diversity
-        let diversity = self.calculate_generation_diversity();
-        self.diversity_history
-            .push((self.generation_number, diversity));
+            // Calculate and record diversity
+            let diversity = self.calculate_generation_diversity();
+            self.diversity_history
+                .push((self.generation_number, diversity));
 
-        println!("  Genetic diversity: {:.4}", diversity);
+            println!("  Genetic diversity: {:.4}", diversity);
 
-        // Evaluate against benchmarks
-        let (random_score, simple_score) = self.evaluate_against_benchmarks()?;
-        self.benchmark_history
-            .push((self.generation_number, random_score, simple_score));
+            // Evaluate against benchmarks
+            let (random_score, simple_score) = self.evaluate_against_benchmarks()?;
+            self.benchmark_history
+                .push((self.generation_number, random_score, simple_score));
+
+            self.track_champion_survival()?;
+        }
+
         Ok(())
     }
 
@@ -197,17 +228,35 @@ impl TrainingEnvironment {
         let num_games = agent_pairs.len();
         println!(
             "Playing {} games in generation {}",
-            num_games,
-            self.generation_number + 1
+            num_games, self.generation_number
         );
+
+        // Create shared counters for win statistics
+        let total_games = Arc::new(AtomicUsize::new(0));
+        let win_games = Arc::new(AtomicUsize::new(0));
 
         // Track progress for user feedback
         let progress = Arc::new(Mutex::new((0, num_games)));
 
         // Play games in parallel
         agent_pairs.par_iter().for_each(|(i, j)| {
-            if let Err(e) = self.play_game_between_agents(*i, *j, Arc::clone(&generation_arc)) {
-                eprintln!("Error playing game between agents {} and {}: {}", i, j, e);
+            let result = self.play_game_between_agents(*i, *j, Arc::clone(&generation_arc));
+
+            if let Ok(game_result) = result {
+                // Increment total games counter
+                total_games.fetch_add(1, Ordering::Relaxed);
+
+                // Check if game ended with a win
+                if let GameResult::Win(_) = game_result {
+                    win_games.fetch_add(1, Ordering::Relaxed);
+                }
+            } else {
+                eprintln!(
+                    "Error playing game between agents {} and {}: {}",
+                    i,
+                    j,
+                    result.unwrap_err()
+                );
             }
 
             // Update and display progress
@@ -222,6 +271,22 @@ impl TrainingEnvironment {
                 );
             }
         });
+
+        // Get final counts
+        let total = total_games.load(Ordering::Relaxed);
+        let wins = win_games.load(Ordering::Relaxed);
+
+        // Record win statistics
+        if self.settings.show_visualizations {
+            self.win_statistics_history
+                .push((self.generation_number, wins, total));
+            println!(
+                "  Win ratio: {}/{} ({:.1}%)",
+                wins,
+                total,
+                100.0 * wins as f64 / total as f64
+            );
+        }
 
         // Get generation back from Arc<Mutex<>>
         let generation = Arc::try_unwrap(generation_arc)
@@ -239,7 +304,7 @@ impl TrainingEnvironment {
         agent0_index: usize,
         agent1_index: usize,
         generation_arc: Arc<Mutex<Generation>>,
-    ) -> Result<()> {
+    ) -> Result<GameResult> {
         // Get references to the agent neural networks
         let agent0_nn;
         let agent1_nn;
@@ -256,8 +321,8 @@ impl TrainingEnvironment {
                 .clone();
         }
 
-        // Play the game and get rewards
-        let (reward0, reward1) = self.play_single_game(&agent0_nn, &agent1_nn)?;
+        // Play the game and get rewards and game result
+        let (reward0, reward1, game_result) = self.play_single_game(&agent0_nn, &agent1_nn)?;
 
         // Update agent fitness
         {
@@ -272,7 +337,7 @@ impl TrainingEnvironment {
             }
         }
 
-        Ok(())
+        Ok(game_result)
     }
 
     /// Play a single game between two neural networks and return rewards
@@ -280,7 +345,7 @@ impl TrainingEnvironment {
         &self,
         neural_network0: &NeuralNetwork,
         neural_network1: &NeuralNetwork,
-    ) -> Result<(f64, f64)> {
+    ) -> Result<(f64, f64, GameResult)> {
         // Create a new game
         let mut game = Game::new(
             self.settings.board_size as i16,
@@ -294,6 +359,7 @@ impl TrainingEnvironment {
         };
 
         let mut moves_played = self.settings.max_moves_per_player;
+        let mut game_result = GameResult::Draw;
         // Play until someone wins or max moves reached
         for move_counter in 0..self.settings.max_moves_per_player * 2 {
             // Determine which agent's turn it is
@@ -308,6 +374,7 @@ impl TrainingEnvironment {
             // If the game is won, break out of the loop
             if let GameResult::Win(moves_to_win) = action {
                 moves_played = moves_to_win;
+                game_result = action;
                 break;
             } else if let GameResult::Invalid = action {
                 let log_entry = LogEntry {
@@ -325,11 +392,13 @@ impl TrainingEnvironment {
                 };
                 let _result = log_single_log_entry(&log_entry, &self.settings.log_file);
 
+                game_result = action;
                 break;
             }
         }
         // Calculate rewards for both players
-        self.calculate_rewards(&game, moves_played)
+        let (reward0, reward1) = self.calculate_rewards(&game, moves_played)?;
+        Ok((reward0, reward1, game_result))
     }
 
     pub fn nn_move(
@@ -391,6 +460,11 @@ impl TrainingEnvironment {
 
     /// Calculate the genetic diversity of the current generation
     fn calculate_generation_diversity(&self) -> f64 {
+        // Skip calculation if visualizations are disabled
+        if !self.settings.show_visualizations {
+            return 0.0;
+        }
+
         let generation = &self.current_generation;
         let agents = &generation.agents;
 
@@ -456,7 +530,7 @@ impl TrainingEnvironment {
     pub fn evolve_population(&mut self) -> Result<()> {
         println!(
             "Evolving population for generation {}",
-            self.generation_number + 1
+            self.generation_number
         );
 
         // Create next generation using selection strategy
@@ -495,6 +569,12 @@ impl TrainingEnvironment {
 
     /// Evaluate the top agent against benchmark agents
     pub fn evaluate_against_benchmarks(&self) -> Result<(f64, f64)> {
+        // Skip evaluation if visualizations are disabled
+        if !self.settings.show_visualizations {
+            return Ok((0.0, 0.0));
+        }
+
+        let num_games = 5;
         // Create benchmark agents
         let random_agent = RandomAgent::new();
         let simple_agent = SimpleForwardAgent::new();
@@ -508,12 +588,8 @@ impl TrainingEnvironment {
         let mut sorted_generation = self.current_generation.clone();
         sorted_generation.sort_by_fitness()?;
 
-        let top_nn = sorted_generation
-            .get_neural_network(0)
-            .ok_or_else(|| anyhow::anyhow!("Failed to get top neural network"))?;
-
         // Play multiple games against benchmarks for more reliable results
-        let num_games = 1;
+
         let mut random_score = 0.0;
         let mut simple_score = 0.0;
 
@@ -523,7 +599,9 @@ impl TrainingEnvironment {
         for i in 0..num_games {
             let neural_network_plays_first = i % 2 == 0; // Alternate first player
             let (nn_score, _) = play_against_benchmark(
-                top_nn,
+                sorted_generation
+                    .get_neural_network(i % self.settings.generation_size)
+                    .unwrap(),
                 &random_agent,
                 &self.settings,
                 neural_network_plays_first,
@@ -536,7 +614,9 @@ impl TrainingEnvironment {
         for i in 0..num_games {
             let neural_network_plays_first = i % 2 == 0; // Alternate first player
             let (nn_score, _) = play_against_benchmark(
-                top_nn,
+                sorted_generation
+                    .get_neural_network(i % self.settings.generation_size)
+                    .unwrap(),
                 &simple_agent,
                 &self.settings,
                 neural_network_plays_first,
@@ -550,6 +630,105 @@ impl TrainingEnvironment {
 
         Ok((random_score, simple_score))
     }
+
+    /// Track champion survival across generations
+    pub fn track_champion_survival(&mut self) -> Result<()> {
+        // Only proceed if we have at least one agent
+        if self.current_generation.agents.is_empty() {
+            return Ok(());
+        }
+
+        // Ensure agents are sorted by fitness
+        self.current_generation.sort_by_fitness()?;
+
+        // Get the current champion (top agent)
+        let current_champion = &self.current_generation.agents[0];
+
+        // Generate a fingerprint of the champion's neural network
+        let fingerprint = generate_network_fingerprint(&current_champion.neural_network);
+
+        // Check if this is a new champion
+        if let Some(last_fingerprint) = &self.current_champion_fingerprint {
+            if *last_fingerprint != fingerprint {
+                // If there was a previous champion, record their survival duration
+                if let Some(appearance_gen) = self.champion_first_appearance {
+                    let survival_duration = self.generation_number - appearance_gen;
+
+                    // Add to history (converting to u32 as per your struct definition)
+                    self.champion_survival_history
+                        .push((appearance_gen as u32, survival_duration as u32));
+
+                    println!(
+                        "Champion from generation {} survived for {} generations",
+                        appearance_gen, survival_duration
+                    );
+
+                    // Update with new champion information
+                    self.champion_first_appearance = Some(self.generation_number);
+                    self.current_champion_fingerprint = Some(fingerprint);
+                }
+            }
+        } else {
+            // First champion ever
+            self.current_champion_fingerprint = Some(fingerprint);
+            self.champion_first_appearance = Some(self.generation_number);
+
+            println!(
+                "Initial champion recorded at generation {}",
+                self.generation_number
+            );
+        }
+
+        // Handle the final generation's champion
+        if self.generation_number == self.settings.number_of_generations - 1 {
+            if let Some(appearance_gen) = self.champion_first_appearance {
+                let survival_duration = self.generation_number - appearance_gen + 1;
+
+                // Only add if this champion hasn't already been recorded
+                if self.current_champion_fingerprint.is_some() {
+                    self.champion_survival_history
+                        .push((appearance_gen as u32, survival_duration as u32));
+
+                    println!(
+                        "Final champion from generation {} survived for {} generations",
+                        appearance_gen, survival_duration
+                    );
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+/// Generate a fingerprint for a neural network to uniquely identify it
+fn generate_network_fingerprint(network: &NeuralNetwork) -> String {
+    // Create a simplified fingerprint based on weight patterns
+    // This is more robust than comparing exact weights
+    let mut signature = String::new();
+
+    // Sample some weights from each layer to create a signature
+    for (i, weights) in network.weights.iter().enumerate() {
+        // Sample up to 10 values from each weight matrix
+        let sample_count = weights.values.len().min(10);
+        let step = (weights.values.len() / sample_count).max(1);
+
+        for j in (0..weights.values.len()).step_by(step).take(sample_count) {
+            if j < weights.values.len() {
+                // Quantize the weight value to reduce sensitivity to small changes
+                let quantized = (weights.values[j] * 1000.0).round() / 1000.0;
+                signature.push_str(&format!("{}:{:.3}", i, quantized));
+            }
+        }
+    }
+
+    // Hash the signature to create a compact fingerprint
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    let mut hasher = DefaultHasher::new();
+    signature.hash(&mut hasher);
+    format!("{:x}", hasher.finish())
 }
 
 #[cfg(test)]
@@ -667,7 +846,8 @@ mod tests {
         ])?;
 
         // Play a game and get rewards
-        let (reward0, reward1) = env.play_single_game(&neural_network0, &neural_network1)?;
+        let (reward0, reward1, _game_result) =
+            env.play_single_game(&neural_network0, &neural_network1)?;
 
         // Basic sanity checks
         assert!(reward0.is_finite());
