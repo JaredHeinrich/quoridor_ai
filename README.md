@@ -50,3 +50,7 @@ Several crates function as libraries, and two crates produce executables.
     Where the path specifys which file should be used to load the neural
     networks, and the lines specify in which line of the file the neural networks
     can be found. To let the AI make the next move press "Enter".
+    To run the executable, use the following command inside the crate directory:  
+    ```bash
+    cargo run --release
+    ```
