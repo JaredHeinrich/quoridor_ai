@@ -527,3 +527,93 @@ pub fn plot_champion_survival(environment: &TrainingEnvironment) -> Result<()> {
 
     Ok(())
 }
+
+/// Plot the percentage of games ending with a win in each generation
+pub fn plot_win_statistics(environment: &TrainingEnvironment) -> Result<()> {
+    if environment.win_statistics_history.is_empty() {
+        println!("No win statistics data to plot");
+        return Ok(());
+    }
+
+    let output_file = format!(
+        "{}_win_statistics_plot.png",
+        environment.settings.log_file.replace(".json", "")
+    );
+    println!("Generating win statistics plot at: {}", output_file);
+
+    // Create the plot
+    let root = BitMapBackend::new(&output_file, (1024, 768)).into_drawing_area();
+    root.fill(&WHITE)?;
+
+    // Calculate win percentages
+    let win_percentages: Vec<(u32, f64)> = environment
+        .win_statistics_history
+        .iter()
+        .map(|(gen, wins, total)| {
+            (*gen as u32, if *total > 0 { 100.0 * *wins as f64 / *total as f64 } else { 0.0 })
+        })
+        .collect();
+
+    // Find min and max values for y-axis
+    let min_y = 0.0;
+    let max_y = 100.0;
+
+    let max_gen = environment.win_statistics_history.len() as u32;
+
+    let mut chart = ChartBuilder::on(&root)
+        .caption("Game Outcomes per Generation", ("sans-serif", 30).into_font())
+        .margin(10)
+        .x_label_area_size(40)
+        .y_label_area_size(60)
+        .build_cartesian_2d(0u32..max_gen, min_y..max_y)?;
+
+    chart
+        .configure_mesh()
+        .x_desc("Generation")
+        .y_desc("Win Percentage (%)")
+        .axis_desc_style(("sans-serif", 15))
+        .draw()?;
+
+    // Plot win percentage
+    chart
+        .draw_series(LineSeries::new(
+            win_percentages,
+            &GREEN.mix(0.8),
+        ))?
+        .label("Games Ending in Win (%)")
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREEN.mix(0.8)));
+
+    // Add bar chart showing actual win counts
+    chart.draw_series(
+        environment
+            .win_statistics_history
+            .iter()
+            .map(|(gen, wins, total)| {
+                let win_pct = if *total > 0 { 100.0 * *wins as f64 / *total as f64 } else { 0.0 };
+                Rectangle::new(
+                    [(*gen as u32, 0.0), ((*gen as f64  + 0.8)as u32, win_pct)],
+                    GREEN.mix(0.3).filled(),
+                )
+            }),
+    )?;
+
+    // Add a reference line at 50%
+    chart
+        .draw_series(LineSeries::new(
+            vec![(0, 50.0), (max_gen, 50.0)],
+            &BLACK.mix(0.3),
+        ))?
+        .label("50% Reference")
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLACK.mix(0.3)));
+
+    chart
+        .configure_series_labels()
+        .background_style(&WHITE.mix(0.8))
+        .border_style(&BLACK)
+        .draw()?;
+
+    root.present()?;
+    println!("Win statistics plot generated at: {}", output_file);
+
+    Ok(())
+}

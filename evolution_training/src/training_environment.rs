@@ -1,6 +1,7 @@
 use anyhow::Result;
 use rayon::prelude::*;
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
 use crate::benchmark::{play_against_benchmark, RandomAgent, SimpleForwardAgent};
@@ -40,6 +41,8 @@ pub struct TrainingEnvironment {
     pub benchmark_history: Vec<(usize, f64, f64)>,
     /// Champion survival history for tracking (generation first appeared, generations survived)
     pub champion_survival_history: Vec<(u32, u32)>,
+    /// Win statistics history (generation, wins, total_games)
+    pub win_statistics_history: Vec<(usize, usize, usize)>,
     /// Current champion's network fingerprint
     current_champion_fingerprint: Option<String>,
     /// Generation when current champion first appeared
@@ -59,6 +62,7 @@ impl TrainingEnvironment {
             diversity_history: Vec::new(),
             benchmark_history: Vec::new(),
             champion_survival_history: Vec::new(),
+            win_statistics_history: Vec::new(),
             current_champion_fingerprint: None,
             champion_first_appearance: None,
         }
@@ -72,6 +76,7 @@ impl TrainingEnvironment {
         self.generation_time_history.clear();
         self.diversity_history.clear();
         self.benchmark_history.clear();
+        self.win_statistics_history.clear();
         self.current_champion_fingerprint = None;
         self.champion_first_appearance = None;
         println!(
@@ -148,6 +153,7 @@ impl TrainingEnvironment {
             crate::visualization::plot_generation_times(self)?;
             crate::visualization::plot_benchmark_history(self)?;
             crate::visualization::plot_champion_survival(self)?;
+            crate::visualization::plot_win_statistics(self)?;
             crate::visualization::plot_diversity_history(self)?;
         }
         
@@ -227,13 +233,27 @@ impl TrainingEnvironment {
             self.generation_number
         );
 
+        // Create shared counters for win statistics
+        let total_games = Arc::new(AtomicUsize::new(0));
+        let win_games = Arc::new(AtomicUsize::new(0));
+
         // Track progress for user feedback
         let progress = Arc::new(Mutex::new((0, num_games)));
 
         // Play games in parallel
         agent_pairs.par_iter().for_each(|(i, j)| {
-            if let Err(e) = self.play_game_between_agents(*i, *j, Arc::clone(&generation_arc)) {
-                eprintln!("Error playing game between agents {} and {}: {}", i, j, e);
+            let result = self.play_game_between_agents(*i, *j, Arc::clone(&generation_arc));
+
+            if let Ok(game_result) = result {
+                // Increment total games counter
+                total_games.fetch_add(1, Ordering::Relaxed);
+
+                // Check if game ended with a win
+                if let GameResult::Win(_) = game_result {
+                    win_games.fetch_add(1, Ordering::Relaxed);
+                }
+            } else {
+                eprintln!("Error playing game between agents {} and {}: {}", i, j, result.unwrap_err());
             }
 
             // Update and display progress
@@ -248,6 +268,16 @@ impl TrainingEnvironment {
                 );
             }
         });
+
+        // Get final counts
+        let total = total_games.load(Ordering::Relaxed);
+        let wins = win_games.load(Ordering::Relaxed);
+
+        // Record win statistics
+        if self.settings.show_visualizations {
+            self.win_statistics_history.push((self.generation_number, wins, total));
+            println!("  Win ratio: {}/{} ({:.1}%)", wins, total, 100.0 * wins as f64 / total as f64);
+        }
 
         // Get generation back from Arc<Mutex<>>
         let generation = Arc::try_unwrap(generation_arc)
@@ -265,7 +295,7 @@ impl TrainingEnvironment {
         agent0_index: usize,
         agent1_index: usize,
         generation_arc: Arc<Mutex<Generation>>,
-    ) -> Result<()> {
+    ) -> Result<GameResult> {
         // Get references to the agent neural networks
         let agent0_nn;
         let agent1_nn;
@@ -282,8 +312,8 @@ impl TrainingEnvironment {
                 .clone();
         }
 
-        // Play the game and get rewards
-        let (reward0, reward1) = self.play_single_game(&agent0_nn, &agent1_nn)?;
+        // Play the game and get rewards and game result
+        let (reward0, reward1, game_result) = self.play_single_game(&agent0_nn, &agent1_nn)?;
 
         // Update agent fitness
         {
@@ -298,7 +328,7 @@ impl TrainingEnvironment {
             }
         }
 
-        Ok(())
+        Ok(game_result)
     }
 
     /// Play a single game between two neural networks and return rewards
@@ -306,7 +336,7 @@ impl TrainingEnvironment {
         &self,
         neural_network0: &NeuralNetwork,
         neural_network1: &NeuralNetwork,
-    ) -> Result<(f64, f64)> {
+    ) -> Result<(f64, f64, GameResult)> {
         // Create a new game
         let mut game = Game::new(
             self.settings.board_size as i16,
@@ -320,6 +350,7 @@ impl TrainingEnvironment {
         };
 
         let mut moves_played = self.settings.max_moves_per_player;
+        let mut game_result = GameResult::Draw;
         // Play until someone wins or max moves reached
         for move_counter in 0..self.settings.max_moves_per_player * 2 {
             // Determine which agent's turn it is
@@ -334,6 +365,7 @@ impl TrainingEnvironment {
             // If the game is won, break out of the loop
             if let GameResult::Win(moves_to_win) = action {
                 moves_played = moves_to_win;
+                game_result = action;
                 break;
             } else if let GameResult::Invalid = action {
                 let log_entry = LogEntry {
@@ -351,11 +383,13 @@ impl TrainingEnvironment {
                 };
                 let _result = log_single_log_entry(&log_entry, &self.settings.log_file);
 
+                game_result = action;
                 break;
             }
         }
         // Calculate rewards for both players
-        self.calculate_rewards(&game, moves_played)
+        let (reward0, reward1) = self.calculate_rewards(&game, moves_played)?;
+        Ok((reward0, reward1, game_result))
     }
 
     pub fn nn_move(
@@ -790,7 +824,7 @@ mod tests {
         ])?;
 
         // Play a game and get rewards
-        let (reward0, reward1) = env.play_single_game(&neural_network0, &neural_network1)?;
+        let (reward0, reward1, _game_result) = env.play_single_game(&neural_network0, &neural_network1)?;
 
         // Basic sanity checks
         assert!(reward0.is_finite());
