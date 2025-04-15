@@ -49,7 +49,15 @@ Several crates function as libraries, and two crates produce executables.
     ```
     Where the path specifys which file should be used to load the neural
     networks, and the lines specify in which line of the file the neural networks
-    can be found. To let the AI make the next move press "Enter".
+    can be found. Each neural network is saved in its own line. In a generation the neural 
+    networks are logged in order of the placements. So to calculate a line of the neural
+    network with the generation count g and placement p the 
+    line l = generation_size * (g -1) + p
+
+
+
+
+     To let the AI make the next move press "Enter".
     To run the executable, use the following command inside the crate directory:  
     ```bash
     cargo run --release
