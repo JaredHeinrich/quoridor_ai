@@ -25,7 +25,7 @@ fn run() -> anyhow::Result<()> {
         .with_reward_coefficients(
             RewardFunction::Simple,
             100.0, // win reward
-            -1.0, // own distance punishment
+            -1.0,  // own distance punishment
             0.5,   // other distance reward
             5.0,   // per saved turn reward
         )

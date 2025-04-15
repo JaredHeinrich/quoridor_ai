@@ -271,7 +271,7 @@ pub fn plot_diversity_history(environment: &TrainingEnvironment) -> Result<()> {
         .y_desc("Diversity (avg pairwise distance)")
         .axis_desc_style(("sans-serif", 15))
         .draw()?;
-    
+
     // Plot population diversity
     chart
         .draw_series(LineSeries::new(
@@ -419,21 +419,20 @@ pub fn plot_champion_survival(environment: &TrainingEnvironment) -> Result<()> {
         .iter()
         .map(|(gen, _)| *gen)
         .max()
-        .unwrap_or(0) as u32 + 5; // Add some margin
-    
+        .unwrap_or(0) as u32
+        + 5; // Add some margin
+
     let max_survival = environment
         .champion_survival_history
         .iter()
         .map(|(_, survival)| *survival)
         .max()
-        .unwrap_or(0) as u32 + 2; // Add some margin
+        .unwrap_or(0) as u32
+        + 2; // Add some margin
 
     // Create chart
     let mut chart = ChartBuilder::on(&root)
-        .caption(
-            "Champion Survival Duration",
-            ("sans-serif", 30).into_font(),
-        )
+        .caption("Champion Survival Duration", ("sans-serif", 30).into_font())
         .margin(10)
         .x_label_area_size(40)
         .y_label_area_size(60)
@@ -479,16 +478,16 @@ pub fn plot_champion_survival(environment: &TrainingEnvironment) -> Result<()> {
     let introduction_points: Vec<(u32, u32)> = environment
         .champion_survival_history
         .iter()
-        .map(|(gen, _)| (*gen as u32, 0))  // Place them at y=0
+        .map(|(gen, _)| (*gen as u32, 0)) // Place them at y=0
         .collect();
 
     if !introduction_points.is_empty() {
         // Draw circles at the bottom to indicate champion introduction points
         chart
             .draw_series(
-                introduction_points.iter().map(|&(x, y)| {
-                    Circle::new((x, y), 5, GREEN.mix(0.7).filled())
-                })
+                introduction_points
+                    .iter()
+                    .map(|&(x, y)| Circle::new((x, y), 5, GREEN.mix(0.7).filled())),
             )?
             .label("New Champion Introduction")
             .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREEN.mix(0.7)));
@@ -508,10 +507,14 @@ pub fn plot_champion_survival(environment: &TrainingEnvironment) -> Result<()> {
                 .unwrap_or(0) as f64;
 
         if generations_span > 0.0 {
-            let change_rate = (environment.champion_survival_history.len() as f64 * 10.0) / generations_span;
+            let change_rate =
+                (environment.champion_survival_history.len() as f64 * 10.0) / generations_span;
             chart
                 .draw_series(LineSeries::new(vec![], RED))?
-                .label(format!("Champion turnover rate: {:.2} per 10 generations", change_rate));
+                .label(format!(
+                    "Champion turnover rate: {:.2} per 10 generations",
+                    change_rate
+                ));
         }
     }
 
@@ -550,7 +553,14 @@ pub fn plot_win_statistics(environment: &TrainingEnvironment) -> Result<()> {
         .win_statistics_history
         .iter()
         .map(|(gen, wins, total)| {
-            (*gen as u32, if *total > 0 { 100.0 * *wins as f64 / *total as f64 } else { 0.0 })
+            (
+                *gen as u32,
+                if *total > 0 {
+                    100.0 * *wins as f64 / *total as f64
+                } else {
+                    0.0
+                },
+            )
         })
         .collect();
 
@@ -561,7 +571,10 @@ pub fn plot_win_statistics(environment: &TrainingEnvironment) -> Result<()> {
     let max_gen = environment.win_statistics_history.len() as u32;
 
     let mut chart = ChartBuilder::on(&root)
-        .caption("Game Outcomes per Generation", ("sans-serif", 30).into_font())
+        .caption(
+            "Game Outcomes per Generation",
+            ("sans-serif", 30).into_font(),
+        )
         .margin(10)
         .x_label_area_size(40)
         .y_label_area_size(60)
@@ -576,10 +589,7 @@ pub fn plot_win_statistics(environment: &TrainingEnvironment) -> Result<()> {
 
     // Plot win percentage
     chart
-        .draw_series(LineSeries::new(
-            win_percentages,
-            &GREEN.mix(0.8),
-        ))?
+        .draw_series(LineSeries::new(win_percentages, &GREEN.mix(0.8)))?
         .label("Games Ending in Win (%)")
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREEN.mix(0.8)));
 
@@ -589,9 +599,13 @@ pub fn plot_win_statistics(environment: &TrainingEnvironment) -> Result<()> {
             .win_statistics_history
             .iter()
             .map(|(gen, wins, total)| {
-                let win_pct = if *total > 0 { 100.0 * *wins as f64 / *total as f64 } else { 0.0 };
+                let win_pct = if *total > 0 {
+                    100.0 * *wins as f64 / *total as f64
+                } else {
+                    0.0
+                };
                 Rectangle::new(
-                    [(*gen as u32, 0.0), ((*gen as f64  + 0.8)as u32, win_pct)],
+                    [(*gen as u32, 0.0), ((*gen as f64 + 0.8) as u32, win_pct)],
                     GREEN.mix(0.3).filled(),
                 )
             }),

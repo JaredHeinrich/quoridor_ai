@@ -61,7 +61,7 @@ pub struct Settings {
     // Quoridor-specific settings
     pub board_size: usize,
     pub walls_per_player: usize,
-    
+
     /// Whether to collect data for and show visualizations
     pub show_visualizations: bool,
 }
@@ -109,7 +109,7 @@ impl Default for Settings {
             // Quoridor-specific settings
             board_size: 9,
             walls_per_player: 10,
-            
+
             // Visualization settings
             show_visualizations: true,
         }
