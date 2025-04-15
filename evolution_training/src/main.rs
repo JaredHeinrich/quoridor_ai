@@ -17,10 +17,10 @@ fn run() -> anyhow::Result<()> {
     // Create and configure settings with reasonable defaults
     let settings = Settings::default()
         .with_generation_size(20)
-        .with_network_architecture(vec![147, 16, 132])
+        .with_network_architecture(vec![147, 32, 32, 132])
         .with_survival_rate(0.4)
         .with_reactivation_rate(0.2)
-        .with_mutation_rate(0.01)
+        .with_mutation_rate(0.1)
         .with_mutation_rate_decrease(0.001)
         .with_reward_coefficients(
             RewardFunction::Simple,
@@ -31,7 +31,8 @@ fn run() -> anyhow::Result<()> {
         )
         .with_max_moves_per_player(40)
         .with_deterministic_play(true)
-        .with_generation_count(100);
+        .with_generation_count(20)
+        .with_show_visualizations(true);
 
     // Validate settings
     settings.validate()?;

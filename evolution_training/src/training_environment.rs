@@ -40,6 +40,10 @@ pub struct TrainingEnvironment {
     pub benchmark_history: Vec<(usize, f64, f64)>,
     /// Champion survival history for tracking (generation first appeared, generations survived)
     pub champion_survival_history: Vec<(u32, u32)>,
+    /// Current champion's network fingerprint
+    current_champion_fingerprint: Option<String>,
+    /// Generation when current champion first appeared
+    champion_first_appearance: Option<usize>,
 }
 
 impl TrainingEnvironment {
@@ -55,6 +59,8 @@ impl TrainingEnvironment {
             diversity_history: Vec::new(),
             benchmark_history: Vec::new(),
             champion_survival_history: Vec::new(),
+            current_champion_fingerprint: None,
+            champion_first_appearance: None,
         }
     }
 
@@ -66,6 +72,8 @@ impl TrainingEnvironment {
         self.generation_time_history.clear();
         self.diversity_history.clear();
         self.benchmark_history.clear();
+        self.current_champion_fingerprint = None;
+        self.champion_first_appearance = None;
         println!(
             "Initialized generation 0 with {} agents",
             self.settings.generation_size
@@ -100,14 +108,16 @@ impl TrainingEnvironment {
             // Play all games in this generation and update fitness scores
             self.play_generation()?;
 
-            // Log and display results (now includes champion tracking)
+            // Log and display results
             self.log_generation_results()?;
 
             let generation_duration = gen_start_time.elapsed();
 
-            // Store generation time for plotting (in seconds)
-            self.generation_time_history
-                .push((self.generation_number, generation_duration.as_secs_f64()));
+            // Only store generation time for plotting if visualizations are enabled
+            if self.settings.show_visualizations {
+                self.generation_time_history
+                    .push((self.generation_number, generation_duration.as_secs_f64()));
+            }
 
             println!(
                 "Generation {} completed in {:.2?}",
@@ -131,12 +141,15 @@ impl TrainingEnvironment {
         // Make sure to process the final generation's champion
         self.track_champion_survival()?;
 
-        // Generate plots using the visualization module
-        crate::visualization::plot_fitness_history(self)?;
-        crate::visualization::plot_generation_times(self)?;
-        crate::visualization::plot_benchmark_history(self)?;
-        crate::visualization::plot_champion_survival(self)?;
-        crate::visualization::plot_diversity_history(self)?;
+        // Only generate plots if visualizations are enabled
+        if self.settings.show_visualizations {
+            println!("Generating visualization plots...");
+            crate::visualization::plot_fitness_history(self)?;
+            crate::visualization::plot_generation_times(self)?;
+            crate::visualization::plot_benchmark_history(self)?;
+            crate::visualization::plot_champion_survival(self)?;
+            crate::visualization::plot_diversity_history(self)?;
+        }
         
         Ok(())
     }
@@ -150,43 +163,45 @@ impl TrainingEnvironment {
         // Log generation to file
         log_generation(generation, &self.settings.log_file)?;
 
-        // Display stats
-        let top_fitness = generation.agents[0].get_fitness();
-        let avg_fitness: f64 = generation
-            .agents
-            .iter()
-            .map(|a| a.get_fitness())
-            .sum::<f64>()
-            / generation.agents.len() as f64;
-        let min_fitness = generation.agents.last().unwrap().get_fitness();
+        // Only collect visualization data if enabled
+        if self.settings.show_visualizations {
+            // Display stats
+            let top_fitness = generation.agents[0].get_fitness();
+            let avg_fitness: f64 = generation
+                .agents
+                .iter()
+                .map(|a| a.get_fitness())
+                .sum::<f64>()
+                / generation.agents.len() as f64;
+            let min_fitness = generation.agents.last().unwrap().get_fitness();
 
-        println!("Generation {} results:", self.generation_number);
-        println!("  Top fitness: {:.2}", top_fitness);
-        println!("  Avg fitness: {:.2}", avg_fitness);
-        println!("  Min fitness: {:.2}", min_fitness);
+            println!("Generation {} results:", self.generation_number);
+            println!("  Top fitness: {:.2}", top_fitness);
+            println!("  Avg fitness: {:.2}", avg_fitness);
+            println!("  Min fitness: {:.2}", min_fitness);
 
-        // Update fitness history
-        self.fitness_history.push((
-            self.generation_number,
-            top_fitness,
-            avg_fitness,
-            min_fitness,
-        ));
+            // Update fitness history
+            self.fitness_history.push((
+                self.generation_number,
+                top_fitness,
+                avg_fitness,
+                min_fitness,
+            ));
 
-        // Calculate and record diversity
-        let diversity = self.calculate_generation_diversity();
-        self.diversity_history
-            .push((self.generation_number, diversity));
+            // Calculate and record diversity
+            let diversity = self.calculate_generation_diversity();
+            self.diversity_history
+                .push((self.generation_number, diversity));
 
-        println!("  Genetic diversity: {:.4}", diversity);
+            println!("  Genetic diversity: {:.4}", diversity);
 
-        // Evaluate against benchmarks
-        let (random_score, simple_score) = self.evaluate_against_benchmarks()?;
-        self.benchmark_history
-            .push((self.generation_number, random_score, simple_score));
-        
-        // Track champion survival - integrated with other metrics
-        self.track_champion_survival()?;
+            // Evaluate against benchmarks
+            let (random_score, simple_score) = self.evaluate_against_benchmarks()?;
+            self.benchmark_history
+                .push((self.generation_number, random_score, simple_score));
+            
+            self.track_champion_survival()?;
+        }
         
         Ok(())
     }
@@ -402,6 +417,11 @@ impl TrainingEnvironment {
 
     /// Calculate the genetic diversity of the current generation
     fn calculate_generation_diversity(&self) -> f64 {
+        // Skip calculation if visualizations are disabled
+        if !self.settings.show_visualizations {
+            return 0.0;
+        }
+
         let generation = &self.current_generation;
         let agents = &generation.agents;
 
@@ -506,6 +526,11 @@ impl TrainingEnvironment {
 
     /// Evaluate the top agent against benchmark agents
     pub fn evaluate_against_benchmarks(&self) -> Result<(f64, f64)> {
+        // Skip evaluation if visualizations are disabled
+        if !self.settings.show_visualizations {
+            return Ok((0.0, 0.0));
+        }
+
         let num_games = 5;
         // Create benchmark agents
         let random_agent = RandomAgent::new();
@@ -575,49 +600,43 @@ impl TrainingEnvironment {
         // Generate a fingerprint of the champion's neural network
         let fingerprint = generate_network_fingerprint(&current_champion.neural_network);
         
-        // Static storage for tracking across function calls
-        static mut CURRENT_CHAMPION_FINGERPRINT: Option<String> = None;
-        static mut CHAMPION_FIRST_APPEARANCE: Option<usize> = None;
-        
-        unsafe {
-            // Check if this is a new champion
-            if let Some(last_fingerprint) = &CURRENT_CHAMPION_FINGERPRINT {
-                if *last_fingerprint != fingerprint {
-                    // If there was a previous champion, record their survival duration
-                    if let Some(appearance_gen) = CHAMPION_FIRST_APPEARANCE {
-                        let survival_duration = self.generation_number - appearance_gen;
-                        
-                        // Add to history (converting to u32 as per your struct definition)
-                        self.champion_survival_history.push((appearance_gen as u32, survival_duration as u32));
-                        
-                        println!("Champion from generation {} survived for {} generations", 
-                                 appearance_gen, survival_duration);
-                        
-                        // Update with new champion information
-                        CHAMPION_FIRST_APPEARANCE = Some(self.generation_number);
-                        CURRENT_CHAMPION_FINGERPRINT = Some(fingerprint);
-                    }
-                }
-            } else {
-                // First champion ever
-                CURRENT_CHAMPION_FINGERPRINT = Some(fingerprint);
-                CHAMPION_FIRST_APPEARANCE = Some(self.generation_number);
-                
-                println!("Initial champion recorded at generation {}", self.generation_number);
-            }
-            
-            // Handle the final generation's champion
-            if self.generation_number == self.settings.number_of_generations - 1 {
-                if let Some(appearance_gen) = CHAMPION_FIRST_APPEARANCE {
-                    let survival_duration = self.generation_number - appearance_gen + 1;
+        // Check if this is a new champion
+        if let Some(last_fingerprint) = &self.current_champion_fingerprint {
+            if *last_fingerprint != fingerprint {
+                // If there was a previous champion, record their survival duration
+                if let Some(appearance_gen) = self.champion_first_appearance {
+                    let survival_duration = self.generation_number - appearance_gen;
                     
-                    // Only add if this champion hasn't already been recorded
-                    if CURRENT_CHAMPION_FINGERPRINT.is_some() {
-                        self.champion_survival_history.push((appearance_gen as u32, survival_duration as u32));
-                        
-                        println!("Final champion from generation {} survived for {} generations", 
-                                 appearance_gen, survival_duration);
-                    }
+                    // Add to history (converting to u32 as per your struct definition)
+                    self.champion_survival_history.push((appearance_gen as u32, survival_duration as u32));
+                    
+                    println!("Champion from generation {} survived for {} generations", 
+                             appearance_gen, survival_duration);
+                    
+                    // Update with new champion information
+                    self.champion_first_appearance = Some(self.generation_number);
+                    self.current_champion_fingerprint = Some(fingerprint);
+                }
+            }
+        } else {
+            // First champion ever
+            self.current_champion_fingerprint = Some(fingerprint);
+            self.champion_first_appearance = Some(self.generation_number);
+            
+            println!("Initial champion recorded at generation {}", self.generation_number);
+        }
+        
+        // Handle the final generation's champion
+        if self.generation_number == self.settings.number_of_generations - 1 {
+            if let Some(appearance_gen) = self.champion_first_appearance {
+                let survival_duration = self.generation_number - appearance_gen + 1;
+                
+                // Only add if this champion hasn't already been recorded
+                if self.current_champion_fingerprint.is_some() {
+                    self.champion_survival_history.push((appearance_gen as u32, survival_duration as u32));
+                    
+                    println!("Final champion from generation {} survived for {} generations", 
+                             appearance_gen, survival_duration);
                 }
             }
         }
