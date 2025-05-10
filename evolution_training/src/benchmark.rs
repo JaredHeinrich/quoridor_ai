@@ -16,7 +16,7 @@ fn get_valid_walls(game: &Game) -> Vec<Wall> {
     let mut valid_walls = Vec::new();
 
     // Skip if player has no walls left
-    if game.pawns[game.current_pawn].number_of_available_walls <= 0 {
+    if game.current_pawn().number_of_available_walls <= 0 {
         return valid_walls;
     }
 

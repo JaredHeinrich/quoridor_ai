@@ -17,7 +17,7 @@ fn run() -> anyhow::Result<()> {
     // Create and configure settings with reasonable defaults
     let settings = Settings::default()
         .with_generation_size(20)
-        .with_network_architecture(vec![147, 32, 32, 32, 132])
+        .with_network_architecture(vec![147, 32, 32, 132])
         .with_survival_rate(0.4)
         .with_reactivation_rate(0.2)
         .with_mutation_rate(0.1)
@@ -25,13 +25,14 @@ fn run() -> anyhow::Result<()> {
         .with_reward_coefficients(
             RewardFunction::Simple,
             100.0, // win reward
-            -10.0, // own distance punishment
-            5.0,   // other distance reward
-            2.0,   // per saved turn reward
+            -1.0,  // own distance punishment
+            0.5,   // other distance reward
+            5.0,   // per saved turn reward
         )
-        .with_max_moves_per_player(50)
+        .with_max_moves_per_player(40)
         .with_deterministic_play(true)
-        .with_generation_count(1000);
+        .with_generation_count(20)
+        .with_show_visualizations(true);
 
     // Validate settings
     settings.validate()?;
